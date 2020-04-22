@@ -4,13 +4,13 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch
 from PIL import Image
-from model import Model
+#from model import Model
 
 IMAGE_SIZE = 84
 IMAGES_DIR = os.path.join('..', 'data', 'celeba', 'data', 'raw', 'img_align_celeba')
 
 
-class ClientModel(Model, nn.Module):
+class ClientModel(nn.Module):
     def __init__(self, seed, lr, num_classes):
         self.num_classes = num_classes
         super(ClientModel, self).__init__(seed, lr)
