@@ -1,6 +1,12 @@
 import random
 import warnings
+import numpy as np
+import torch.nn as nn
+import torch.optim as optim
+import torch
 
+from utils.model_utils import batch_data
+from baseline_constants import ACCURACY_KEY
 
 class Client:
     
@@ -27,7 +33,8 @@ class Client:
         """
         if minibatch is None:
             data = self.train_data
-            comp, update = self.model.train(data, num_epochs, batch_size)
+            num_data = batch_size
+            #comp, update = self.model.train(data, num_epochs, batch_size)
         else:
             frac = min(1.0, minibatch)
             num_data = max(1, int(frac*len(self.train_data["x"])))
@@ -36,9 +43,41 @@ class Client:
 
             # Minibatch trains for only 1 epoch - multiple local epochs don't make sense!
             num_epochs = 1
-            comp, update = self.model.train(data, num_epochs, num_data)
+            #comp, update = self.model.train(data, num_epochs, num_data)
+        # train model
+        criterion = nn.CrossEntropyLoss().cuda()  # it already does softmax computation
+        optimizer = optim.Adam(self.model.parameters(), lr=0.0001)
+        losses = np.empty(num_epochs)
+        j = 0
+        for epoch in range(num_epochs):
+            self.model.train()
+            losses[j] = self.run_epoch(data, num_data, optimizer, criterion)
+            j += 1
+        # comp = num_epochs * (len(data['y']) // batch_size) * batch_size * self.flops
+        # self.flops ?
+        self.losses = losses
         num_train_samples = len(data['y'])
-        return comp, num_train_samples, update
+        update = self.model.parameters()
+        return num_train_samples, update
+
+    def run_epoch(self, data, batch_size, optimizer, criterion):
+        running_loss = 0.0
+        i = 0
+        for batched_x, batched_y in batch_data(data, batch_size, seed=self.seed):
+            input_data = self.model.process_x(batched_x)
+            target_data = self.model.process_y(batched_y)
+            if torch.cuda.is_available:
+                input_data = input_data.cuda()
+                target_data = target_data.cuda()
+
+            optimizer.zero_grad()
+            outputs = self.model(input_data)
+            loss = criterion(outputs, target_data)  # loss between the prediction and ground truth (labels)
+            loss.backward()  # gradient inside the optimizer
+            optimizer.step()  # update of weights
+            running_loss += loss.item()
+            i += 1
+        return running_loss/i
 
     def test(self, set_to_use='test'):
         """Tests self.model on self.test_data.
@@ -53,7 +92,22 @@ class Client:
             data = self.train_data
         elif set_to_use == 'test' or set_to_use == 'val':
             data = self.eval_data
-        return self.model.test(data)
+        self.model.eval()
+        correct = 0
+        total = 0
+        input = self.model.process_x(data)
+        labels = self.model.process_y(data)
+        if torch.cuda.is_available:
+            input = input.cuda()
+            labels = labels.cuda()
+
+        with torch.no_grad():
+            outputs = self.model(input)
+            _, predicted = torch.max(outputs.data, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+        accuracy = 100 * correct / total
+        return {ACCURACY_KEY: accuracy, 'loss': self.losses.mean()}
 
     @property
     def num_test_samples(self):

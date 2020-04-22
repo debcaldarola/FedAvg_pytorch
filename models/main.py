@@ -5,7 +5,6 @@ import numpy as np
 import os
 import sys
 import random
-import tensorflow as tf
 
 import metrics.writer as metrics_writer
 
@@ -26,8 +25,8 @@ def main():
 
     # Set the random seed if provided (affects client sampling, and batching)
     random.seed(1 + args.seed)
-    np.random.seed(12 + args.seed)
-    tf.set_random_seed(123 + args.seed)
+    np.random.seed(123 + args.seed)
+    #tf.set_random_seed(123 + args.seed)
 
     model_path = '%s/%s.py' % (args.dataset, args.model)
     if not os.path.exists(model_path):
@@ -43,9 +42,6 @@ def main():
     eval_every = args.eval_every if args.eval_every != -1 else tup[1]
     clients_per_round = args.clients_per_round if args.clients_per_round != -1 else tup[2]
 
-    # Suppress tf warnings
-    tf.logging.set_verbosity(tf.logging.WARN)
-
     # Create 2 models
     model_params = MODEL_PARAMS[model_path]
     if args.lr != -1:
@@ -54,7 +50,6 @@ def main():
         model_params = tuple(model_params_list)
 
     # Create client model, and share params with server model
-    tf.reset_default_graph()
     client_model = ClientModel(args.seed, *model_params)
 
     # Create server

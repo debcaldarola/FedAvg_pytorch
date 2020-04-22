@@ -6,7 +6,7 @@ class Server:
     
     def __init__(self, client_model):
         self.client_model = client_model
-        self.model = client_model.get_params()
+        self.model = client_model.parameters()
         self.selected_clients = []
         self.updates = []
 
@@ -54,14 +54,15 @@ class Server:
         sys_metrics = {
             c.id: {BYTES_WRITTEN_KEY: 0,
                    BYTES_READ_KEY: 0,
-                   LOCAL_COMPUTATIONS_KEY: 0} for c in clients}
+                   #LOCAL_COMPUTATIONS_KEY: 0
+                } for c in clients}
         for c in clients:
             c.model.set_params(self.model)
-            comp, num_samples, update = c.train(num_epochs, batch_size, minibatch)
+            num_samples, update = c.train(num_epochs, batch_size, minibatch)
 
             sys_metrics[c.id][BYTES_READ_KEY] += c.model.size
             sys_metrics[c.id][BYTES_WRITTEN_KEY] += c.model.size
-            sys_metrics[c.id][LOCAL_COMPUTATIONS_KEY] = comp
+            #sys_metrics[c.id][LOCAL_COMPUTATIONS_KEY] = comp
 
             self.updates.append((num_samples, update))
 
@@ -94,7 +95,8 @@ class Server:
             clients_to_test = self.selected_clients
 
         for client in clients_to_test:
-            client.model.set_params(self.model)
+            client.model.load_state_dict(self.model.state_dict())
+            #client.model.set_params(self.model)
             c_metrics = client.test(set_to_use)
             metrics[client.id] = c_metrics
         
@@ -119,9 +121,10 @@ class Server:
     def save_model(self, path):
         """Saves the server model on checkpoints/dataset/model.ckpt."""
         # Save server model
-        self.client_model.set_params(self.model)
-        model_sess =  self.client_model.sess
-        return self.client_model.saver.save(model_sess, path)
+        self.client_model.load_state_dict(self.model.state_dict())
+        #self.client_model.set_params(self.model)
+        #model_sess = self.client_model.sess
+        return self.client_model.save(self.client_model, path)
 
     def close_model(self):
         self.client_model.close()
