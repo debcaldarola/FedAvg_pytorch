@@ -11,28 +11,28 @@ IMAGES_DIR = os.path.join('..', 'data', 'celeba', 'data', 'raw', 'img_align_cele
 
 
 class ClientModel(nn.Module):
-    def __init__(self, num_classes):
+    def __init__(self, seed, lr, num_classes):
         self.num_classes = num_classes
-        #super(ClientModel, self).__init__(seed, lr)
+        super(ClientModel, self).__init__()
         self.layer1 = nn.Sequential(
-            nn.Conv2d(3, 32, kernel_size=3, stride=1, padding='same'),
-            nn.BatchNorm2d(num_features=32, training=True),
-            nn.MaxPool2d(kernel_size=2, stride=1, padding='same'),
-            nn.ReLu()
+            nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(num_features=32),
+            nn.MaxPool2d(kernel_size=2, stride=1, padding=1),
+            nn.ReLU()
         )
         self.layer2_3 = nn.Sequential(
-            nn.Conv2d(32, 32, kernel_size=3, stride=1, padding='same'),
-            nn.BatchNorm2d(num_features=32, training=True),
-            nn.MaxPool2d(kernel_size=2, stride=1, padding='same'),
-            nn.ReLu()
+            nn.Conv2d(32, 32, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(num_features=32),
+            nn.MaxPool2d(kernel_size=2, stride=1, padding=1),
+            nn.ReLU()
         )
         self.layer4 = nn.Sequential(
-            nn.Conv2d(32, 64, kernel_size=3, stride=1, padding='same'),
-            nn.BatchNorm2d(num_features=32, training=True),
-            nn.MaxPool2d(kernel_size=2, stride=1, padding='same'),
-            nn.ReLu()
+            nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(num_features=32),
+            nn.MaxPool2d(kernel_size=2, stride=1, padding=1),
+            nn.ReLU()
         )
-        self.fc1 = nn.Liner(64*4*4, 1024)
+        self.fc1 = nn.Linear(64*4*4, 1024)
         self.fc2 = nn.Linear(1024, self.num_classes) #4 filters => 4 feature maps
         # nn.Linear equivalent to tf.layers.dense()
 

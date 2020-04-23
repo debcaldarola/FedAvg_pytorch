@@ -121,7 +121,7 @@ class Server:
     def save_model(self, path):
         """Saves the server model on checkpoints/dataset/model.ckpt."""
         # Save server model
-        self.client_model.load_state_dict(self.model.state_dict())
+        self.client_model.load_state_dict(self.client_model.state_dict())
         #self.client_model.set_params(self.model)
         #model_sess = self.client_model.sess
         return self.client_model.save(self.client_model, path)

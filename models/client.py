@@ -81,7 +81,7 @@ class Client:
 
     def test(self, set_to_use='test'):
         """Tests self.model on self.test_data.
-        
+
         Args:
             set_to_use. Set to test on. Should be in ['train', 'test'].
         Return:
@@ -95,14 +95,11 @@ class Client:
         self.model.eval()
         correct = 0
         total = 0
-        input = self.model.process_x(data)
-        labels = self.model.process_y(data)
-        if torch.cuda.is_available:
-            input = input.cuda()
-            labels = labels.cuda()
+        input = self.model.process_x(data['x'])
+        labels = self.model.process_y(data['y'])
 
         with torch.no_grad():
-            outputs = self.model(input)
+            outputs = self.model(torch.from_numpy(input).permute(0, 3, 1, 2))
             _, predicted = torch.max(outputs.data, 1)
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
