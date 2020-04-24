@@ -95,7 +95,7 @@ class Server:
             clients_to_test = self.selected_clients
 
         for client in clients_to_test:
-            client.model.load_state_dict(self.model.state_dict())
+            client.model.load_state_dict(self.client_model.state_dict())
             #client.model.set_params(self.model)
             c_metrics = client.test(set_to_use)
             metrics[client.id] = c_metrics
