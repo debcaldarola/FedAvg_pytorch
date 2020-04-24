@@ -28,20 +28,22 @@ class ClientModel(nn.Module):
         )
         self.layer4 = nn.Sequential(
             nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(num_features=32),
+            nn.BatchNorm2d(num_features=64),
             nn.MaxPool2d(kernel_size=2, stride=1, padding=1),
             nn.ReLU()
         )
-        self.fc1 = nn.Linear(64*4*4, 1024)
+        self.fc1 = nn.Linear(64*88*88, 1024)
         self.fc2 = nn.Linear(1024, self.num_classes) #4 filters => 4 feature maps
         # nn.Linear equivalent to tf.layers.dense()
 
     def forward(self, x):
-        x = self.layer1(x)
+        x = self.layer1(x.float())
         x = self.layer2_3(x)
         x = self.layer2_3(x)
         x = self.layer4(x)
+        print(x.shape)
         x = x.view(x.shape[0], -1)
+        print(x.shape)
         x = F.dropout(x, p=0.5, training=self.training)
         #FC layer
         x = self.fc1(x)
