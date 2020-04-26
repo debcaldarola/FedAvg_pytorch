@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 
 from baseline_constants import BYTES_WRITTEN_KEY, BYTES_READ_KEY, LOCAL_COMPUTATIONS_KEY
 
@@ -57,7 +58,7 @@ class Server:
                    #LOCAL_COMPUTATIONS_KEY: 0
                 } for c in clients}
         for c in clients:
-            c.model.set_params(self.model)
+            c.model.load_state_dict(self.client_model.state_dict())
             num_samples, update = c.train(num_epochs, batch_size, minibatch)
 
             sys_metrics[c.id][BYTES_READ_KEY] += c.model.size
@@ -70,11 +71,11 @@ class Server:
 
     def update_model(self):
         total_weight = 0.
-        base = [0] * len(self.updates[0][1])
+        base = [0] * self.num_parameters(self.updates[0][1])
         for (client_samples, client_model) in self.updates:
             total_weight += client_samples
             for i, v in enumerate(client_model):
-                base[i] += (client_samples * v.astype(np.float64))
+                base[i] += (client_samples * v.type(torch.FloatTensor))
         averaged_soln = [v / total_weight for v in base]
 
         self.model = averaged_soln
@@ -128,3 +129,6 @@ class Server:
 
     def close_model(self):
         self.client_model.close()
+
+    def num_parameters(self, params):
+        return sum(p.numel() for p in params if p.requires_grad)

@@ -11,7 +11,7 @@ IMAGES_DIR = os.path.join('..', 'data', 'celeba', 'data', 'raw', 'img_align_cele
 
 
 class ClientModel(nn.Module):
-    def __init__(self, seed, lr, num_classes):
+    def __init__(self, lr, num_classes):
         self.num_classes = num_classes
         super(ClientModel, self).__init__()
         self.layer1 = nn.Sequential(
@@ -35,15 +35,16 @@ class ClientModel(nn.Module):
         self.fc1 = nn.Linear(64*88*88, 1024)
         self.fc2 = nn.Linear(1024, self.num_classes) #4 filters => 4 feature maps
         # nn.Linear equivalent to tf.layers.dense()
+        self.size = self.model_size()
 
     def forward(self, x):
         x = self.layer1(x.float())
         x = self.layer2_3(x)
         x = self.layer2_3(x)
         x = self.layer4(x)
-        print(x.shape)
+        #print(x.shape)
         x = x.view(x.shape[0], -1)
-        print(x.shape)
+        #print(x.shape)
         x = F.dropout(x, p=0.5, training=self.training)
         #FC layer
         x = self.fc1(x)
@@ -86,3 +87,9 @@ class ClientModel(nn.Module):
         img = Image.open(os.path.join(IMAGES_DIR, img_name))
         img = img.resize((IMAGE_SIZE, IMAGE_SIZE)).convert('RGB')
         return np.array(img)
+
+    def model_size(self):
+        tot_size = 0
+        for param in self.parameters():
+            tot_size += param.size()[0]
+        return tot_size

@@ -10,12 +10,13 @@ from baseline_constants import ACCURACY_KEY
 
 class Client:
     
-    def __init__(self, client_id, group=None, train_data={'x' : [],'y' : []}, eval_data={'x' : [],'y' : []}, model=None):
+    def __init__(self, seed, client_id, group=None, train_data={'x' : [],'y' : []}, eval_data={'x' : [],'y' : []}, model=None):
         self._model = model
         self.id = client_id
         self.group = group
         self.train_data = train_data
         self.eval_data = eval_data
+        self.seed = seed
 
     def train(self, num_epochs=1, batch_size=10, minibatch=None):
         """Trains on self.model using the client's train_data.
@@ -45,7 +46,9 @@ class Client:
             num_epochs = 1
             #comp, update = self.model.train(data, num_epochs, num_data)
         # train model
-        criterion = nn.CrossEntropyLoss().cuda()  # it already does softmax computation
+        criterion = nn.CrossEntropyLoss()  # it already does softmax computation
+        if torch.cuda.is_available:
+            criterion = criterion.cuda()
         optimizer = optim.Adam(self.model.parameters(), lr=0.0001)
         losses = np.empty(num_epochs)
         j = 0
@@ -66,13 +69,15 @@ class Client:
         for batched_x, batched_y in batch_data(data, batch_size, seed=self.seed):
             input_data = self.model.process_x(batched_x)
             target_data = self.model.process_y(batched_y)
-            if torch.cuda.is_available:
-                input_data = input_data.cuda()
-                target_data = target_data.cuda()
+            input_data_tensor = torch.from_numpy(input_data).permute(0, 3, 1, 2)
+            target_data_tensor = torch.LongTensor(target_data)
+#            if torch.cuda.is_available:
+#                input_data_tensor = input_data_tensor.cuda()
+#                target_data_tensor = target_data_tensor.cuda()
 
             optimizer.zero_grad()
-            outputs = self.model(input_data)
-            loss = criterion(outputs, target_data)  # loss between the prediction and ground truth (labels)
+            outputs = self.model(input_data_tensor)
+            loss = criterion(outputs, target_data_tensor)  # loss between the prediction and ground truth (labels)
             loss.backward()  # gradient inside the optimizer
             optimizer.step()  # update of weights
             running_loss += loss.item()
@@ -97,14 +102,19 @@ class Client:
         total = 0
         input = self.model.process_x(data['x'])
         labels = self.model.process_y(data['y'])
-
+        input_tensor = torch.from_numpy(input).permute(0, 3, 1, 2)
+        labels_tensor = torch.LongTensor(labels)
+#        if torch.cuda.is_available:
+#            input_tensor = input_tensor.cuda()
+#            labels_tensor = labels_tensor.cuda()
+        
         with torch.no_grad():
-            outputs = self.model(torch.from_numpy(input).permute(0, 3, 1, 2))
+            outputs = self.model(input_tensor)
             _, predicted = torch.max(outputs.data, 1)
-            total += labels.size(0)
-            correct += (predicted == labels).sum().item()
+            total = labels_tensor.size(0)
+            correct += (predicted == labels_tensor).sum().item()
         accuracy = 100 * correct / total
-        return {ACCURACY_KEY: accuracy, 'loss': self.losses.mean()}
+        return {ACCURACY_KEY: accuracy}
 
     @property
     def num_test_samples(self):

@@ -5,6 +5,7 @@ import numpy as np
 import os
 import sys
 import random
+#import torch
 
 import metrics.writer as metrics_writer
 
@@ -50,13 +51,14 @@ def main():
         model_params = tuple(model_params_list)
 
     # Create client model, and share params with server model
-    client_model = ClientModel(args.seed, *model_params)
-
+    client_model = ClientModel(*model_params)
+ #   if torch.cuda.is_available:
+  #      client_model = client_model.cuda()
     # Create server
     server = Server(client_model)
 
     # Create clients
-    clients = setup_clients(args.dataset, client_model, args.use_val_set)
+    clients = setup_clients(args.dataset, client_model, args.use_val_set, args.seed)
     client_ids, client_groups, client_num_samples = server.get_clients_info(clients)
     print('Clients in Total: %d' % len(clients))
 
@@ -100,14 +102,14 @@ def online(clients):
     return clients
 
 
-def create_clients(users, groups, train_data, test_data, model):
+def create_clients(users, groups, train_data, test_data, model, seed):
     if len(groups) == 0:
         groups = [[] for _ in users]
-    clients = [Client(u, g, train_data[u], test_data[u], model) for u, g in zip(users, groups)]
+    clients = [Client(seed, u, g, train_data[u], test_data[u], model) for u, g in zip(users, groups)]
     return clients
 
 
-def setup_clients(dataset, model=None, use_val_set=False):
+def setup_clients(dataset, model=None, use_val_set=False, seed=None):
     """Instantiates clients based on given train and test data directories.
 
     Return:
@@ -119,7 +121,7 @@ def setup_clients(dataset, model=None, use_val_set=False):
 
     users, groups, train_data, test_data = read_data(train_data_dir, test_data_dir)
 
-    clients = create_clients(users, groups, train_data, test_data, model)
+    clients = create_clients(users, groups, train_data, test_data, model, seed)
 
     return clients
 
