@@ -94,9 +94,6 @@ def main():
     save_path = server.save_model(os.path.join(ckpt_path, '{}.ckpt'.format(args.model)))
     print('Model saved in path: %s' % save_path)
 
-    # Close models
-    server.close_model()
-
 def online(clients):
     """We assume all users are always online."""
     return clients

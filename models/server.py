@@ -125,10 +125,8 @@ class Server:
         self.client_model.load_state_dict(self.client_model.state_dict())
         #self.client_model.set_params(self.model)
         #model_sess = self.client_model.sess
-        return self.client_model.save(self.client_model, path)
-
-    def close_model(self):
-        self.client_model.close()
+        torch.save(self.client_model, path)
+        return path
 
     def num_parameters(self, params):
         return sum(p.numel() for p in params if p.requires_grad)
