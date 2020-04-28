@@ -51,7 +51,7 @@ def main():
         model_params = tuple(model_params_list)
 
     # Setup GPU
-    device = torch.device('cuda:') # insert GPU id
+    device = torch.device('cuda:0')
 
     # Create client model, and share params with server model
     client_model = ClientModel(*model_params, device)
