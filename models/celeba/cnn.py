@@ -11,8 +11,9 @@ IMAGES_DIR = os.path.join('..', 'data', 'celeba', 'data', 'raw', 'img_align_cele
 
 
 class ClientModel(nn.Module):
-    def __init__(self, lr, num_classes):
+    def __init__(self, lr, num_classes, device):
         self.num_classes = num_classes
+        self.device = device
         super(ClientModel, self).__init__()
         self.layer1 = nn.Sequential(
             nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1),

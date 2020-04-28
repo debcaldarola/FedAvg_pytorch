@@ -10,13 +10,15 @@ from baseline_constants import ACCURACY_KEY
 
 class Client:
     
-    def __init__(self, seed, client_id, group=None, train_data={'x' : [],'y' : []}, eval_data={'x' : [],'y' : []}, model=None):
+    def __init__(self, seed, client_id, group=None, train_data={'x' : [],'y' : []}, eval_data={'x' : [],'y' : []},
+                 model=None, device=None):
         self._model = model
         self.id = client_id
         self.group = group
         self.train_data = train_data
         self.eval_data = eval_data
         self.seed = seed
+        self.device = device
 
     def train(self, num_epochs=1, batch_size=10, minibatch=None):
         """Trains on self.model using the client's train_data.
@@ -48,7 +50,7 @@ class Client:
         # train model
         criterion = nn.CrossEntropyLoss()  # it already does softmax computation
         if torch.cuda.is_available:
-            criterion = criterion.cuda()
+            criterion = criterion.to(self.device)
         optimizer = optim.Adam(self.model.parameters(), lr=0.0001)
         losses = np.empty(num_epochs)
         j = 0
@@ -71,9 +73,9 @@ class Client:
             target_data = self.model.process_y(batched_y)
             input_data_tensor = torch.from_numpy(input_data).permute(0, 3, 1, 2)
             target_data_tensor = torch.LongTensor(target_data)
-#            if torch.cuda.is_available:
-#                input_data_tensor = input_data_tensor.cuda()
-#                target_data_tensor = target_data_tensor.cuda()
+            if torch.cuda.is_available:
+                input_data_tensor = input_data_tensor.to(self.device)
+                target_data_tensor = target_data_tensor.to(self.device)
 
             optimizer.zero_grad()
             outputs = self.model(input_data_tensor)
@@ -104,9 +106,9 @@ class Client:
         labels = self.model.process_y(data['y'])
         input_tensor = torch.from_numpy(input).permute(0, 3, 1, 2)
         labels_tensor = torch.LongTensor(labels)
-#        if torch.cuda.is_available:
-#            input_tensor = input_tensor.cuda()
-#            labels_tensor = labels_tensor.cuda()
+        if torch.cuda.is_available:
+            input_tensor = input_tensor.to(self.device)
+            labels_tensor = labels_tensor.to(self.device)
         
         with torch.no_grad():
             outputs = self.model(input_tensor)

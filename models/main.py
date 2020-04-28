@@ -50,15 +50,18 @@ def main():
         model_params_list[0] = args.lr
         model_params = tuple(model_params_list)
 
+    # Setup GPU
+    device = torch.device('cuda:') # insert GPU id
+
     # Create client model, and share params with server model
-    client_model = ClientModel(*model_params)
- #   if torch.cuda.is_available:
-  #      client_model = client_model.cuda()
+    client_model = ClientModel(*model_params, device)
+    if torch.cuda.is_available:
+       client_model = client_model.to(device)
     # Create server
     server = Server(client_model)
 
     # Create clients
-    clients = setup_clients(args.dataset, client_model, args.use_val_set, args.seed)
+    clients = setup_clients(args.dataset, client_model, args.use_val_set, args.seed, device)
     client_ids, client_groups, client_num_samples = server.get_clients_info(clients)
     print('Clients in Total: %d' % len(clients))
 
@@ -99,14 +102,14 @@ def online(clients):
     return clients
 
 
-def create_clients(users, groups, train_data, test_data, model, seed):
+def create_clients(users, groups, train_data, test_data, model, seed, device):
     if len(groups) == 0:
         groups = [[] for _ in users]
-    clients = [Client(seed, u, g, train_data[u], test_data[u], model) for u, g in zip(users, groups)]
+    clients = [Client(seed, u, g, train_data[u], test_data[u], model, device) for u, g in zip(users, groups)]
     return clients
 
 
-def setup_clients(dataset, model=None, use_val_set=False, seed=None):
+def setup_clients(dataset, model=None, use_val_set=False, seed=None, device=None):
     """Instantiates clients based on given train and test data directories.
 
     Return:
@@ -118,7 +121,7 @@ def setup_clients(dataset, model=None, use_val_set=False, seed=None):
 
     users, groups, train_data, test_data = read_data(train_data_dir, test_data_dir)
 
-    clients = create_clients(users, groups, train_data, test_data, model, seed)
+    clients = create_clients(users, groups, train_data, test_data, model, seed, device)
 
     return clients
 
