@@ -5,7 +5,7 @@ import numpy as np
 import os
 import sys
 import random
-#import torch
+import torch
 
 import metrics.writer as metrics_writer
 
@@ -51,7 +51,7 @@ def main():
         model_params = tuple(model_params_list)
 
     # Setup GPU
-    device = torch.device('cuda:0')
+    device = torch.device('cuda:1')
 
     # Create client model, and share params with server model
     client_model = ClientModel(*model_params, device)

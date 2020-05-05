@@ -20,7 +20,7 @@ class Client:
         self.seed = seed
         self.device = device
 
-    def train(self, num_epochs=1, batch_size=10, minibatch=None):
+    def train(self, num_epochs=1, batch_size=5, minibatch=None):
         """Trains on self.model using the client's train_data.
 
         Args:

@@ -65,7 +65,7 @@ class Server:
             sys_metrics[c.id][BYTES_WRITTEN_KEY] += c.model.size
             #sys_metrics[c.id][LOCAL_COMPUTATIONS_KEY] = comp
 
-            self.updates.append((num_samples, update))
+            self.updates.append((num_samples, update)).to('cpu')
 
         return sys_metrics
 

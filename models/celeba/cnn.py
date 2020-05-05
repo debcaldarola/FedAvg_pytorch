@@ -44,7 +44,7 @@ class ClientModel(nn.Module):
         x = self.layer2_3(x)
         x = self.layer4(x)
         #print(x.shape)
-        x = x.view(x.shape[0], -1)
+        x = torch.reshape(x,(x.shape[0], -1))
         #print(x.shape)
         x = F.dropout(x, p=0.5, training=self.training)
         #FC layer
