@@ -17,8 +17,6 @@ from model import ServerModel
 from utils.args import parse_args
 from utils.model_utils import read_data
 
-from GPUtil import showUtilization as gpu_usage
-
 STAT_METRICS_PATH = 'metrics/stat_metrics.csv'
 SYS_METRICS_PATH = 'metrics/sys_metrics.csv'
 
@@ -70,17 +68,17 @@ def main():
     # Initial status
     # check mem
     print("Initial GPU Usage")
-    gpu_usage()
+    print(torch.cuda.memory_summary())
     print('--- Random Initialization ---')
     stat_writer_fn = get_stat_writer_function(client_ids, client_groups, client_num_samples, args)
     sys_writer_fn = get_sys_writer_function(args)
     # check mem
     print("GPU Usage before print_stats")
-    gpu_usage()
+    print(torch.cuda.memory_summary())
     print_stats(0, server, clients, client_num_samples, args, stat_writer_fn, args.use_val_set)
     # check mem
     print("GPU Usage after initialization")
-    gpu_usage()
+    print(torch.cuda.memory_summary())
     # Simulate training
     for i in range(num_rounds):
         print('--- Round %d of %d: Training %d Clients ---' % (i + 1, num_rounds, clients_per_round))
@@ -90,14 +88,14 @@ def main():
         c_ids, c_groups, c_num_samples = server.get_clients_info(server.selected_clients)
         # check mem
         print("Pre-train GPU Usage")
-        gpu_usage()
+        print(torch.cuda.memory_summary())
         # Simulate server model training on selected clients' data
         sys_metrics = server.train_model(num_epochs=args.num_epochs, batch_size=args.batch_size, minibatch=args.minibatch)
         print("Post-train GPU Usage")
-        gpu_usage()
+        print(torch.cuda.memory_summary())
         sys_writer_fn(i + 1, c_ids, sys_metrics, c_groups, c_num_samples)
         print("Before update GPU Usage")
-        gpu_usage()
+        print(torch.cuda.memory_summary())
         # Update server model
         server.update_model()
 
