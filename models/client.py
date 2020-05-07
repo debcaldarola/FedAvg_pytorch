@@ -50,8 +50,8 @@ class Client:
         # train model
         criterion = nn.CrossEntropyLoss()  # it already does softmax computation
         if torch.cuda.is_available:
-            print('train')
-            self.model = self.model.to(self.device)
+            #print('train')
+            #self.model = self.model.to(self.device)
             criterion = criterion.to(self.device)
         optimizer = optim.Adam(self.model.parameters(), lr=0.0001)
         losses = np.empty(num_epochs)
@@ -65,13 +65,13 @@ class Client:
         self.losses = losses
         num_train_samples = len(data['y'])
         update = self.model.parameters()
-        start = torch.cuda.Event(enable_timing=True)
-        end = torch.cuda.Event(enable_timing=True)
-        start.record()
-        self.model.to('cpu')
-        end.record()
-        torch.cuda.synchronize()
-        print(start.elapsed_time(end))
+        # start = torch.cuda.Event(enable_timing=True)
+        # end = torch.cuda.Event(enable_timing=True)
+        # start.record()
+        # self.model.to('cpu')
+        # end.record()
+        # torch.cuda.synchronize()
+        # print(start.elapsed_time(end))
         return num_train_samples, update
 
     def run_epoch(self, data, batch_size, optimizer, criterion):
@@ -93,6 +93,7 @@ class Client:
             optimizer.step()  # update of weights
             running_loss += loss.item()
             i += 1
+            torch.cuda.empty_cache()
         return running_loss/i
 
     def test(self, set_to_use='test'):
@@ -108,8 +109,8 @@ class Client:
             data = self.train_data
         elif set_to_use == 'test' or set_to_use == 'val':
             data = self.eval_data
-        if torch.cuda.is_available:
-            self.model = self.model.to(self.device)
+        #if torch.cuda.is_available:
+            #self.model = self.model.to(self.device)
         self.model.eval()
         correct = 0
         total = 0
@@ -127,15 +128,15 @@ class Client:
             total = labels_tensor.size(0)
             correct += (predicted == labels_tensor).sum().item()
         accuracy = 100 * correct / total
-        start = torch.cuda.Event(enable_timing=True)
-        end = torch.cuda.Event(enable_timing=True)
-        start.record()
-        print('before')
-        self.model.to('cpu')
-        print('after')
-        end.record()
-        torch.cuda.synchronize()
-        print(start.elapsed_time(end))
+        # start = torch.cuda.Event(enable_timing=True)
+        # end = torch.cuda.Event(enable_timing=True)
+        # start.record()
+        # print('before')
+        # self.model.to('cpu')
+        # print('after')
+        # end.record()
+        # torch.cuda.synchronize()
+        #print(start.elapsed_time(end))
         return {ACCURACY_KEY: accuracy}
 
     @property
