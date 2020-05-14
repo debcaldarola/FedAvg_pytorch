@@ -1,15 +1,13 @@
 import torch.nn as nn
 import torch.nn.functional as F
-
-
-from model import Model
+import torch
 import numpy as np
 
 
 IMAGE_SIZE = 28
 
 
-class ClientModel(Model):
+class ClientModel(nn.Module):
     def __init__(self, lr, num_classes, device):
         self.num_classes = num_classes
         self.device = device
@@ -23,11 +21,11 @@ class ClientModel(Model):
         self.layer2 = nn.Sequential(
             nn.Conv2d(32, 64, kernel_size=5, stride=1, padding=1),
             nn.BatchNorm2d(num_features=64),
-            nn.MaxPool2d(kernel_size=2, stride=1, padding=1),
+            nn.MaxPool2d(kernel_size=2, stride=2, padding=1),
             nn.ReLU()
         )
         self.fc1 = nn.Linear(64 * 7 * 7, 1024)
-        self.fc2 = nn.Linear(1024, self.num_classes)  # 4 filters => 4 feature maps
+        self.fc2 = nn.Linear(1024, self.num_classes)
         # nn.Linear equivalent to tf.layers.dense()
         self.size = self.model_size()
 
@@ -36,6 +34,7 @@ class ClientModel(Model):
         x = self.layer2(x)
         x = x.view(x.shape[0], -1)
         x = F.dropout(x, p=0.5, training=self.training)
+        print(x.shape)
         x = self.fc1(x)
         logits = self.fc2(x)
         return logits
@@ -80,3 +79,9 @@ class ClientModel(Model):
 
     def process_y(self, raw_y_batch):
         return np.array(raw_y_batch)
+
+    def model_size(self):
+        tot_size = 0
+        for param in self.parameters():
+            tot_size += param.size()[0]
+        return tot_size
