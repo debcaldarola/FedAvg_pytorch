@@ -20,7 +20,7 @@ class Client:
         self.seed = seed
         self.device = device
 
-    def train(self, num_epochs=1, batch_size=5, minibatch=None):
+    def train(self, num_epochs=1, batch_size=10, minibatch=None):
         """Trains on self.model using the client's train_data.
 
         Args:
@@ -57,7 +57,11 @@ class Client:
         losses = np.empty(num_epochs)
         j = 0
         for epoch in range(num_epochs):
+            # print('epoch')
+            #print(torch.cuda.memory_summary(torch.device('cuda:1')))
             self.model.train()
+            #print('post train')
+            #print(torch.cuda.memory_summary(torch.device('cuda:1')))
             losses[j] = self.run_epoch(data, num_data, optimizer, criterion)
             j += 1
         # comp = num_epochs * (len(data['y']) // batch_size) * batch_size * self.flops
@@ -85,13 +89,20 @@ class Client:
             if torch.cuda.is_available:
                 input_data_tensor = input_data_tensor.to(self.device)
                 target_data_tensor = target_data_tensor.to(self.device)
-
+                #print('size = ', input_data_tensor.size())
+                #print('target size = ', target_data_tensor.size())
+#            print('with tensors:')
+#            print(torch.cuda.memory_summary(self.device))
             optimizer.zero_grad()
             outputs = self.model(input_data_tensor)
+#            print('outputs')
+#            print(torch.cuda.memory_summary(self.device))
             loss = criterion(outputs, target_data_tensor)  # loss between the prediction and ground truth (labels)
-            loss.backward()  # gradient inside the optimizer
-            optimizer.step()  # update of weights
+            loss.backward()  # gradient inside the optimizer (memory usage increases here)
+            #print('pre opt.step')
+            #print(torch.cuda.memory_summary(torch.device('cuda:1')))
             running_loss += loss.item()
+            optimizer.step()  # update of weights
             i += 1
             torch.cuda.empty_cache()
         return running_loss/i

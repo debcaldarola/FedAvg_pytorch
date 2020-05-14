@@ -57,10 +57,15 @@ class Server:
                    BYTES_READ_KEY: 0,
                    #LOCAL_COMPUTATIONS_KEY: 0
                 } for c in clients}
+#        print('n clients = ', clients.size())
         for c in clients:
+#            print('Loading client..')
+            #print(torch.cuda.memory_summary(torch.device('cuda:1')))
             c.model.load_state_dict(self.client_model.state_dict())
+            #print(torch.cuda.memory_summary(torch.device('cuda:1')))
             num_samples, update = c.train(num_epochs, batch_size, minibatch)
-
+            #print('Memory usage after train client')
+            #print(torch.cuda.memory_summary(torch.device('cuda:1')))
             sys_metrics[c.id][BYTES_READ_KEY] += c.model.size
             sys_metrics[c.id][BYTES_WRITTEN_KEY] += c.model.size
             #sys_metrics[c.id][LOCAL_COMPUTATIONS_KEY] = comp

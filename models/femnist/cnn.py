@@ -26,8 +26,8 @@ class ClientModel(Model):
             nn.MaxPool2d(kernel_size=2, stride=1, padding=1),
             nn.ReLU()
         )
-        self.fc1 = nn.Linear(64 * 7 * 7, 2048)
-        self.fc2 = nn.Linear(2048, self.num_classes)  # 4 filters => 4 feature maps
+        self.fc1 = nn.Linear(64 * 7 * 7, 1024)
+        self.fc2 = nn.Linear(1024, self.num_classes)  # 4 filters => 4 feature maps
         # nn.Linear equivalent to tf.layers.dense()
         self.size = self.model_size()
 

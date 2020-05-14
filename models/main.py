@@ -51,7 +51,7 @@ def main():
         model_params = tuple(model_params_list)
 
     # Setup GPU
-    device = torch.device('cuda:1')
+    device = torch.device('cuda:0')
 
     # Create client model, and share params with server model
     client_model = ClientModel(*model_params, device)
@@ -67,18 +67,18 @@ def main():
 
     # Initial status
     # check mem
-    print("Initial GPU Usage")
-    print(torch.cuda.memory_summary())
+    #print("Initial GPU Usage")
+    #print(torch.cuda.memory_summary(device))
     print('--- Random Initialization ---')
     stat_writer_fn = get_stat_writer_function(client_ids, client_groups, client_num_samples, args)
     sys_writer_fn = get_sys_writer_function(args)
     # check mem
-    print("GPU Usage before print_stats")
-    print(torch.cuda.memory_summary())
+    #print("GPU Usage before print_stats")
+    #print(torch.cuda.memory_summary(device))
     print_stats(0, server, clients, client_num_samples, args, stat_writer_fn, args.use_val_set)
     # check mem
-    print("GPU Usage after initialization")
-    print(torch.cuda.memory_summary())
+    #print("GPU Usage after initialization")
+    #print(torch.cuda.memory_snapshot())
     # Simulate training
     for i in range(num_rounds):
         print('--- Round %d of %d: Training %d Clients ---' % (i + 1, num_rounds, clients_per_round))
@@ -87,15 +87,15 @@ def main():
         server.select_clients(i, online(clients), num_clients=clients_per_round)
         c_ids, c_groups, c_num_samples = server.get_clients_info(server.selected_clients)
         # check mem
-        print("Pre-train GPU Usage")
-        print(torch.cuda.memory_summary())
+        #print("Pre-train GPU Usage")
+        #print(torch.cuda.memory_summary(device))
         # Simulate server model training on selected clients' data
         sys_metrics = server.train_model(num_epochs=args.num_epochs, batch_size=args.batch_size, minibatch=args.minibatch)
-        print("Post-train GPU Usage")
-        print(torch.cuda.memory_summary())
+        #print("Post-train GPU Usage")
+        #print(torch.cuda.memory_summary(device))
         sys_writer_fn(i + 1, c_ids, sys_metrics, c_groups, c_num_samples)
-        print("Before update GPU Usage")
-        print(torch.cuda.memory_summary())
+        #print("Before update GPU Usage")
+        #print(torch.cuda.memory_summary())
         # Update server model
         server.update_model()
 
