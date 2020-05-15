@@ -127,7 +127,9 @@ class Client:
         total = 0
         input = self.model.process_x(data['x'])
         labels = self.model.process_y(data['y'])
+        #print(input.shape)
         input_tensor = torch.from_numpy(input).permute(0, 3, 1, 2)
+        #input_tensor = torch.from_numpy(input)
         labels_tensor = torch.LongTensor(labels)
         if torch.cuda.is_available:
             input_tensor = input_tensor.to(self.device)

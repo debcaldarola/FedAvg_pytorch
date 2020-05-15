@@ -2,7 +2,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch
 import numpy as np
-
+#import os
+#from PIL import Image
 
 IMAGE_SIZE = 28
 
@@ -13,7 +14,7 @@ class ClientModel(nn.Module):
         self.device = device
         super(ClientModel, self).__init__()
         self.layer1 = nn.Sequential(
-            nn.Conv2d(3, 32, kernel_size=5, stride=1, padding=1),
+            nn.Conv2d(1, 32, kernel_size=5, stride=1, padding=1),
             nn.BatchNorm2d(num_features=32),
             nn.MaxPool2d(kernel_size=2, stride=2, padding=1),
             nn.ReLU()
@@ -30,11 +31,11 @@ class ClientModel(nn.Module):
         self.size = self.model_size()
 
     def forward(self, x):
-        x = self.layer1(x)
+        x = self.layer1(x.float())
         x = self.layer2(x)
-        x = x.view(x.shape[0], -1)
+        x = torch.reshape(x,(x.shape[0], -1))
         x = F.dropout(x, p=0.5, training=self.training)
-        print(x.shape)
+        #print(x.shape)
         x = self.fc1(x)
         logits = self.fc2(x)
         return logits
@@ -75,7 +76,12 @@ class ClientModel(nn.Module):
     #     return features, labels, train_op, eval_metric_ops, loss
 
     def process_x(self, raw_x_batch):
-        return np.array(raw_x_batch)
+        #x_batch = [self._load_image(i) for i in raw_x_batch]
+        x_batch = np.array(raw_x_batch)
+        #print(x_batch.shape)
+        #print(x_batch.shape[0])
+        x_batch = np.reshape(x_batch, (x_batch.shape[0], IMAGE_SIZE, IMAGE_SIZE, 1))
+        return x_batch
 
     def process_y(self, raw_y_batch):
         return np.array(raw_y_batch)
@@ -85,3 +91,8 @@ class ClientModel(nn.Module):
         for param in self.parameters():
             tot_size += param.size()[0]
         return tot_size
+
+    def _load_image(self, img_name):
+        img = Image.open(os.path.join(IMAGES_DIR, img_name))
+        img = img.resize((IMAGE_SIZE, IMAGE_SIZE)).convert('RGB')
+        return np.array(img)
