@@ -4,7 +4,8 @@ output_dir="${1:-./baseline}"
 
 split_seed="1549786796"
 sampling_seed="1549786595"
-num_rounds="2000"
+#num_rounds="2000"
+num_rounds="1000"
 
 fedavg_lr="0.004"
 declare -a fedavg_vals=( "3 1"
@@ -80,12 +81,12 @@ output_dir=`realpath ${output_dir}`
 echo "Storing results in directory ${output_dir} (please invoke this script as: ${0} <dirname> to change)"
 
 # Run minibatch SGD experiments
-for val_pair in "${minibatch_vals[@]}"; do
-	clients_per_round=`echo ${val_pair} | cut -d' ' -f1`
-	minibatch_percentage=`echo ${val_pair} | cut -d' ' -f2`
-	echo "Running Minibatch experiment with fraction ${minibatch_percentage} and ${clients_per_round} clients"
-	run_minibatch "${clients_per_round}" "${minibatch_percentage}"
-done
+#for val_pair in "${minibatch_vals[@]}"; do
+#	clients_per_round=`echo ${val_pair} | cut -d' ' -f1`
+#	minibatch_percentage=`echo ${val_pair} | cut -d' ' -f2`
+#	echo "Running Minibatch experiment with fraction ${minibatch_percentage} and ${clients_per_round} clients"
+#	run_minibatch "${clients_per_round}" "${minibatch_percentage}"
+#done
 
 # Run FedAvg experiments
 for val_pair in "${fedavg_vals[@]}"; do
