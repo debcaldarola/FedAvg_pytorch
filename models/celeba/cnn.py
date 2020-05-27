@@ -34,13 +34,13 @@ class ClientModel(nn.Module):
             nn.ReLU()
         )
         self.layer4 = nn.Sequential(
-            nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(num_features=64),
+            nn.Conv2d(32, 32, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(num_features=32),
             nn.MaxPool2d(kernel_size=2, stride=2, padding=1),
             nn.ReLU()
         )
-        self.fc1 = nn.Linear(64*7*7, 1024)
-        self.fc2 = nn.Linear(1024, self.num_classes) #4 filters => 4 feature maps
+        self.fc1 = nn.Linear(64*7*7, self.num_classes)
+        #self.fc2 = nn.Linear(1024, self.num_classes) #4 filters => 4 feature maps
         # nn.Linear equivalent to tf.layers.dense()
         self.size = self.model_size()
 
@@ -52,11 +52,11 @@ class ClientModel(nn.Module):
         #print(x.shape)
         x = torch.reshape(x,(x.shape[0], -1))
         #print(x.shape)
-        x = F.dropout(x, p=0.5, training=self.training)
+        # x = F.dropout(x, p=0.5, training=self.training)
         #FC layer
         #print(x.shape)
-        x = self.fc1(x)
-        logits = self.fc2(x)
+        logits = self.fc1(x)
+        #logits = self.fc2(x)
 #        loss = nn.CrossEntropyLoss()
         return logits
 

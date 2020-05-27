@@ -4,6 +4,7 @@ import numpy as np
 import torch.nn as nn
 import torch.optim as optim
 import torch
+import torch.nn.functional as F
 
 from utils.model_utils import batch_data
 from baseline_constants import ACCURACY_KEY
@@ -55,15 +56,12 @@ class Client:
             #self.model = self.model.to(self.device)
             criterion = criterion.to(self.device)
        
-        optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
+        # optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
+        optimizer = optim.SGD(self.model.parameters(), lr=self.lr)
         losses = np.empty(num_epochs)
         j = 0
         for epoch in range(num_epochs):
-            # print('epoch')
-            #print(torch.cuda.memory_summary(torch.device('cuda:1')))
             self.model.train()
-            #print('post train')
-            #print(torch.cuda.memory_summary(torch.device('cuda:1')))
             losses[j] = self.run_epoch(data, num_data, optimizer, criterion)
 #            if(j>0 and losses[j] > losses[j-1]):
 #                print('Early stopping')
@@ -74,13 +72,6 @@ class Client:
         self.losses = losses
         num_train_samples = len(data['y'])
         update = self.model.parameters()
-        # start = torch.cuda.Event(enable_timing=True)
-        # end = torch.cuda.Event(enable_timing=True)
-        # start.record()
-        # self.model.to('cpu')
-        # end.record()
-        # torch.cuda.synchronize()
-        # print(start.elapsed_time(end))
         return num_train_samples, update
 
     def run_epoch(self, data, batch_size, optimizer, criterion):
@@ -94,18 +85,10 @@ class Client:
             if torch.cuda.is_available:
                 input_data_tensor = input_data_tensor.to(self.device)
                 target_data_tensor = target_data_tensor.to(self.device)
-                #print('size = ', input_data_tensor.size())
-                #print('target size = ', target_data_tensor.size())
-#            print('with tensors:')
-#            print(torch.cuda.memory_summary(self.device))
             optimizer.zero_grad()
             outputs = self.model(input_data_tensor)
-#            print('outputs')
-#            print(torch.cuda.memory_summary(self.device))
             loss = criterion(outputs, target_data_tensor)  # loss between the prediction and ground truth (labels)
             loss.backward()  # gradient inside the optimizer (memory usage increases here)
-            #print('pre opt.step')
-            #print(torch.cuda.memory_summary(torch.device('cuda:1')))
             running_loss += loss.item()
             optimizer.step()  # update of weights
             i += 1
@@ -130,6 +113,7 @@ class Client:
         self.model.eval()
         correct = 0
         total = 0
+        test_loss = 0
         input = self.model.process_x(data['x'])
         labels = self.model.process_y(data['y'])
         #print(input.shape)
@@ -142,20 +126,14 @@ class Client:
         
         with torch.no_grad():
             outputs = self.model(input_tensor)
-            _, predicted = torch.max(outputs.data, 1)
+            #test_loss += F.nll_loss(outputs, labels_tensor, reduction='sum').item()
+            test_loss += F.cross_entropy(outputs, labels_tensor, reduction='sum').item()
+            _, predicted = torch.max(outputs.data, 1)   # same as torch.argmax()
             total = labels_tensor.size(0)
             correct += (predicted == labels_tensor).sum().item()
         accuracy = 100 * correct / total
-        # start = torch.cuda.Event(enable_timing=True)
-        # end = torch.cuda.Event(enable_timing=True)
-        # start.record()
-        # print('before')
-        # self.model.to('cpu')
-        # print('after')
-        # end.record()
-        # torch.cuda.synchronize()
-        #print(start.elapsed_time(end))
-        return {ACCURACY_KEY: accuracy}
+        test_loss /= total
+        return {ACCURACY_KEY: accuracy, 'loss': test_loss}
 
     @property
     def num_test_samples(self):
