@@ -49,7 +49,7 @@ def main():
         model_params_list = list(model_params)
         model_params_list[0] = args.lr
         model_params = tuple(model_params_list)
-
+    print('main:', args.lr)
     # Setup GPU
     device = torch.device('cuda:0')
 
@@ -61,7 +61,7 @@ def main():
     server = Server(client_model)
 
     # Create clients
-    clients = setup_clients(args.dataset, client_model, args.use_val_set, args.seed, device)
+    clients = setup_clients(args.dataset, client_model, args.use_val_set, args.seed, device, args.lr)
     client_ids, client_groups, client_num_samples = server.get_clients_info(clients)
     print('Clients in Total: %d' % len(clients))
 
@@ -115,14 +115,14 @@ def online(clients):
     return clients
 
 
-def create_clients(users, groups, train_data, test_data, model, seed, device):
+def create_clients(users, groups, train_data, test_data, model, seed, device, lr):
     if len(groups) == 0:
         groups = [[] for _ in users]
-    clients = [Client(seed, u, g, train_data[u], test_data[u], model, device) for u, g in zip(users, groups)]
+    clients = [Client(seed, u, lr, g, train_data[u], test_data[u], model, device) for u, g in zip(users, groups)]
     return clients
 
 
-def setup_clients(dataset, model=None, use_val_set=False, seed=None, device=None):
+def setup_clients(dataset, model=None, use_val_set=False, seed=None, device=None, lr=None):
     """Instantiates clients based on given train and test data directories.
 
     Return:
@@ -134,7 +134,7 @@ def setup_clients(dataset, model=None, use_val_set=False, seed=None, device=None
 
     users, groups, train_data, test_data = read_data(train_data_dir, test_data_dir)
 
-    clients = create_clients(users, groups, train_data, test_data, model, seed, device)
+    clients = create_clients(users, groups, train_data, test_data, model, seed, device, lr)
 
     return clients
 

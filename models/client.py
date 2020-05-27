@@ -10,7 +10,7 @@ from baseline_constants import ACCURACY_KEY
 
 class Client:
     
-    def __init__(self, seed, client_id, group=None, train_data={'x' : [],'y' : []}, eval_data={'x' : [],'y' : []},
+    def __init__(self, seed, client_id, lr, group=None, train_data={'x' : [],'y' : []}, eval_data={'x' : [],'y' : []},
                  model=None, device=None):
         self._model = model
         self.id = client_id
@@ -19,6 +19,7 @@ class Client:
         self.eval_data = eval_data
         self.seed = seed
         self.device = device
+        self.lr = lr
 
     def train(self, num_epochs=1, batch_size=10, minibatch=None):
         """Trains on self.model using the client's train_data.
@@ -53,7 +54,8 @@ class Client:
             #print('train')
             #self.model = self.model.to(self.device)
             criterion = criterion.to(self.device)
-        optimizer = optim.Adam(self.model.parameters(), lr=0.0001)
+       
+        optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
         losses = np.empty(num_epochs)
         j = 0
         for epoch in range(num_epochs):
@@ -63,6 +65,9 @@ class Client:
             #print('post train')
             #print(torch.cuda.memory_summary(torch.device('cuda:1')))
             losses[j] = self.run_epoch(data, num_data, optimizer, criterion)
+#            if(j>0 and losses[j] > losses[j-1]):
+#                print('Early stopping')
+#                break 
             j += 1
         # comp = num_epochs * (len(data['y']) // batch_size) * batch_size * self.flops
         # self.flops ?

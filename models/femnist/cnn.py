@@ -12,31 +12,48 @@ class ClientModel(nn.Module):
     def __init__(self, lr, num_classes, device):
         self.num_classes = num_classes
         self.device = device
+        self.lr = lr
+        #print('cnn:', self.lr)
         super(ClientModel, self).__init__()
         self.layer1 = nn.Sequential(
             nn.Conv2d(1, 32, kernel_size=5, stride=1, padding=1),
             nn.BatchNorm2d(num_features=32),
             nn.MaxPool2d(kernel_size=2, stride=2, padding=1),
-            nn.ReLU()
+            nn.LeakyReLU()
         )
         self.layer2 = nn.Sequential(
+            nn.Conv2d(32, 32, kernel_size=5, stride=1, padding=1),
+            nn.BatchNorm2d(num_features=32),
+            nn.MaxPool2d(kernel_size=2, stride=2, padding=1),
+            nn.LeakyReLU()
+        )
+        self.layer3 = nn.Sequential(
+            nn.Conv2d(32, 32, kernel_size=5, stride=1, padding=1),
+            nn.BatchNorm2d(num_features=32),
+            nn.MaxPool2d(kernel_size=2, stride=2, padding=1),
+            nn.LeakyReLU()
+        )
+        self.layer4 = nn.Sequential(
             nn.Conv2d(32, 64, kernel_size=5, stride=1, padding=1),
             nn.BatchNorm2d(num_features=64),
             nn.MaxPool2d(kernel_size=2, stride=2, padding=1),
-            nn.ReLU()
+            nn.LeakyReLU()
         )
-        self.fc1 = nn.Linear(64 * 7 * 7, 1024)
-        self.fc2 = nn.Linear(1024, self.num_classes)
+        self.fc1 = nn.Linear(64 * 3 * 3, 512)
+        self.fc2 = nn.Linear(512, self.num_classes)
         # nn.Linear equivalent to tf.layers.dense()
         self.size = self.model_size()
 
     def forward(self, x):
         x = self.layer1(x.float())
         x = self.layer2(x)
+        #x = self.layer3(x)
+        x = self.layer4(x)
         x = torch.reshape(x,(x.shape[0], -1))
         x = F.dropout(x, p=0.5, training=self.training)
         #print(x.shape)
         x = self.fc1(x)
+        x = F.dropout(x, p=0.5, training=self.training)
         logits = self.fc2(x)
         return logits
 
@@ -96,3 +113,5 @@ class ClientModel(nn.Module):
         img = Image.open(os.path.join(IMAGES_DIR, img_name))
         img = img.resize((IMAGE_SIZE, IMAGE_SIZE)).convert('RGB')
         return np.array(img)
+
+
