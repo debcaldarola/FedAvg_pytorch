@@ -5,7 +5,7 @@ output_dir="${1:-./baseline}"
 split_seed="1549786796"
 sampling_seed="1549786595"
 #num_rounds="2000"
-num_rounds="1000"
+num_rounds="100"
 
 #fedavg_lr="0.004"
 fedavg_lr="0.001"
@@ -13,8 +13,10 @@ fedavg_lr="0.001"
 #declare -a fedavg_vals=( "3 1"
 #			 "3 100"
 #			 "35 1" )
-declare -a fedavg_vals=( "5 1"
-        "5 100")
+batch_size = 5
+declare -a fedavg_vals=( "10 1"
+        "10 100")
+
 
 minibatch_lr="0.06"
 declare -a minibatch_vals=( "3 1"
@@ -26,7 +28,7 @@ declare -a minibatch_vals=( "3 1"
 function move_data() {
 	path="$1"
 	suffix="$2"
-	
+
 	pushd models/metrics
 		mv sys_metrics.csv "${path}/sys_metrics_${suffix}.csv"
 		mv stat_metrics.csv "${path}/stat_metrics_${suffix}.csv"
@@ -41,21 +43,10 @@ function run_fedavg() {
 	num_epochs="$2"
 
 	pushd models/
-		python main.py -dataset 'femnist' -model 'cnn' --num-rounds ${num_rounds} --clients-per-round ${clients_per_round} --num-epochs ${num_epochs} -lr ${fedavg_lr}
+		python main.py -dataset 'celeba' -model 'cnn' --num-rounds ${num_rounds} --clients-per-round ${clients_per_round} --num-epochs ${num_epochs} -lr ${fedavg_lr} --batch-size ${batch_size} --eval-every 5 --use-val-set
 	popd
 	move_data ${output_dir} "fedavg_c_${clients_per_round}_e_${num_epochs}"
 }
-
-function run_minibatch() {
-	clients_per_round="$1"
-	minibatch_percentage="$2"
-
-	pushd models/
-		python main.py -dataset 'femnist' -model 'cnn' --minibatch ${minibatch_percentage} --num-rounds ${num_rounds} --clients-per-round ${clients_per_round} -lr ${minibatch_lr} --use-val-set
-	popd
-	move_data ${output_dir} "minibatch_c_${clients_per_round}_mb_${minibatch_percentage}"
-}
-
 
 ##################### Script #################################
 pushd ../
@@ -66,17 +57,16 @@ if [ ! -d 'data/' -o ! -d 'models/' ]; then
 fi
 
 # If data unavailable, execute pre-processing script
-if [ ! -d 'data/femnist/data/train' ]; then
-	if [ ! -f 'data/femnist/preprocess.sh' ]; then
+if [ ! -d 'data/celeba/data/train' ]; then
+	if [ ! -f 'data/celeba/preprocess.sh' ]; then
 		echo "Couldn't find data/ and/or models/ directories - please obtain scripts from GitHub repo: https://github.com/TalwalkarLab/leaf"
 		exit 1
 	fi
 
-	echo "Couldn't find FEMNIST data - running data preprocessing script"
-	pushd data/femnist/
+	echo "Couldn't find CelebA data - running data preprocessing script"
+	pushd data/celeba/
 		rm -rf meta/ data/test data/train data/rem_user_data data/intermediate
-		./preprocess.sh -s niid --sf 1.00 -k 0 -t sample --smplseed ${sampling_seed} --spltseed ${split_seed} --tf 0.6
-		# -k 100 ?
+		./preprocess.sh -s niid --sf 1.0 -k 5 -t sample --smplseed ${sampling_seed} --spltseed ${split_seed} --tf 0.6
 	popd
 fi
 
@@ -85,13 +75,6 @@ mkdir -p ${output_dir}
 output_dir=`realpath ${output_dir}`
 echo "Storing results in directory ${output_dir} (please invoke this script as: ${0} <dirname> to change)"
 
-# Run minibatch SGD experiments
-#for val_pair in "${minibatch_vals[@]}"; do
-#	clients_per_round=`echo ${val_pair} | cut -d' ' -f1`
-#	minibatch_percentage=`echo ${val_pair} | cut -d' ' -f2`
-#	echo "Running Minibatch experiment with fraction ${minibatch_percentage} and ${clients_per_round} clients"
-#	run_minibatch "${clients_per_round}" "${minibatch_percentage}"
-#done
 
 # Run FedAvg experiments
 for val_pair in "${fedavg_vals[@]}"; do

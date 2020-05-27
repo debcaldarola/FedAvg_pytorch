@@ -1,0 +1,62 @@
+import torch
+import importlib
+import os
+
+from ..utils.args import parse_args
+from ..baseline_constants import MAIN_PARAMS, MODEL_PARAMS
+from ..utils.model_utils import read_data
+from ..utils.model_utils import batch_data
+
+def main():
+    # 1 caricare dati (all_data.json)
+    # 2 inizializzare rete + optim + loss
+    # 3 train
+    # 4 test
+
+    args = parse_args()
+    model_path = '%s/%s.py' % (args.dataset, args.model)
+    if not os.path.exists(model_path):
+        print('Please specify a valid dataset and a valid model.')
+    model_path = '%s.%s' % (args.dataset, args.model)
+    print('############################## %s ##############################' % model_path)
+
+    # Setup GPU
+    device = torch.device('cuda:0')
+
+    model_params = MODEL_PARAMS[model_path]
+    if args.lr != -1:
+        model_params_list = list(model_params)
+        model_params_list[0] = args.lr
+        model_params = tuple(model_params_list)
+
+    # Create model
+    mod = importlib.import_module(model_path)
+    ClientModel = getattr(mod, 'ClientModel')
+    model = ClientModel(*model_params, device)
+    if torch.cuda.is_available:
+        model = model.to(device)
+
+    print('Offline test of one client')
+
+
+
+
+
+def setup_model(dataset, model=None, use_val_set=False, seed=None, device=None, lr=None):
+    eval_set = 'test' if not use_val_set else 'val'
+    train_data_dir = os.path.join('..', 'data', dataset, 'data', 'train')
+    test_data_dir = os.path.join('..', 'data', dataset, 'data', eval_set)
+
+    # data: all_data.json è diviso per utenti -> raw_data ?
+
+
+
+
+
+
+
+
+
+
+if __name__ == '__main__':
+    main()
