@@ -33,8 +33,6 @@ class ClientModel(nn.Module):
     def forward(self, x):
         x = self.layer1(x.float())
         x = self.layer2(x)
-        #x = self.layer3(x)
-        x = self.layer4(x)
         x = torch.reshape(x,(x.shape[0], -1))
         # x = F.dropout(x, p=0.5, training=self.training)
         #print(x.shape)
