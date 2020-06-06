@@ -86,16 +86,9 @@ def main():
         # Select clients to train this round
         server.select_clients(i, online(clients), num_clients=clients_per_round)
         c_ids, c_groups, c_num_samples = server.get_clients_info(server.selected_clients)
-        # check mem
-        #print("Pre-train GPU Usage")
-        #print(torch.cuda.memory_summary(device))
         # Simulate server model training on selected clients' data
         sys_metrics = server.train_model(num_epochs=args.num_epochs, batch_size=args.batch_size, minibatch=args.minibatch)
-        #print("Post-train GPU Usage")
-        #print(torch.cuda.memory_summary(device))
         sys_writer_fn(i + 1, c_ids, sys_metrics, c_groups, c_num_samples)
-        #print("Before update GPU Usage")
-        #print(torch.cuda.memory_summary())
         # Update server model
         server.update_model()
 

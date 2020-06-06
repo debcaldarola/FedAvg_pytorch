@@ -63,9 +63,6 @@ class Client:
         for epoch in range(num_epochs):
             self.model.train()
             losses[j] = self.run_epoch(data, num_data, optimizer, criterion)
-#            if(j>0 and losses[j] > losses[j-1]):
-#                print('Early stopping')
-#                break 
             j += 1
         # comp = num_epochs * (len(data['y']) // batch_size) * batch_size * self.flops
         # self.flops ?
