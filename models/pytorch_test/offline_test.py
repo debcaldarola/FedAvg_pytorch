@@ -7,9 +7,9 @@ import torch.optim as optim
 import numpy as np
 import torch.nn.functional as F
 
-from models.utils.args import parse_args
-from models.baseline_constants import MAIN_PARAMS, MODEL_PARAMS
-from models.utils.model_utils import batch_data
+from ..utils.args import parse_args
+from ..baseline_constants import MAIN_PARAMS, MODEL_PARAMS
+from ..utils.model_utils import batch_data
 
 
 def main():
