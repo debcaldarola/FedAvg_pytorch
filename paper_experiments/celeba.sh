@@ -13,7 +13,7 @@ fedavg_lr="0.001"
 #declare -a fedavg_vals=( "3 1"
 #			 "3 100"
 #			 "35 1" )
-batch_size = 5
+batch_size ="5"
 declare -a fedavg_vals=( "10 1"
         "10 100")
 
@@ -43,7 +43,7 @@ function run_fedavg() {
 	num_epochs="$2"
 
 	pushd models/
-		python main.py -dataset 'celeba' -model 'cnn' --num-rounds ${num_rounds} --clients-per-round ${clients_per_round} --num-epochs ${num_epochs} -lr ${fedavg_lr} --batch-size ${batch_size} --eval-every 5 --use-val-set
+		python main.py -dataset 'celeba' -model 'cnn' --num-rounds ${num_rounds} --clients-per-round ${clients_per_round} --num-epochs ${num_epochs} -lr ${fedavg_lr} --batch-size 5 --eval-every 5
 	popd
 	move_data ${output_dir} "fedavg_c_${clients_per_round}_e_${num_epochs}"
 }

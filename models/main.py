@@ -9,13 +9,13 @@ import torch
 
 import metrics.writer as metrics_writer
 
-from .baseline_constants import MAIN_PARAMS, MODEL_PARAMS
-from .client import Client
-from .server import Server
-from .model import ServerModel
+from baseline_constants import MAIN_PARAMS, MODEL_PARAMS
+from client import Client
+from server import Server
+from model import ServerModel
 
-from .utils.args import parse_args
-from .utils.model_utils import read_data
+from utils.args import parse_args
+from utils.model_utils import read_data
 
 STAT_METRICS_PATH = 'metrics/stat_metrics.csv'
 SYS_METRICS_PATH = 'metrics/sys_metrics.csv'
