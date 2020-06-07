@@ -55,7 +55,9 @@ def setup_dataset(dataset, use_val_set=False):
     train_data_dir = os.path.join('..', 'data', dataset, 'data', 'train')
     test_data_dir = os.path.join('..', 'data', dataset, 'data', eval_set)
     train_set = create_dataset(train_data_dir)
+    print(train_set)
     test_set = create_dataset(test_data_dir)
+    print(test_set)
     return train_set, test_set
 
 
@@ -71,8 +73,8 @@ def create_dataset(dir_path):
             data = json.load(file_content)
             users = data['user_data']
             for u in users:
-                images = data[u]['x']
-                labels = data[u]['y']
+                images = data['user_data'][u]['x']
+                labels = data['user_data'][u]['y']
                 for i in range(len(labels)):
                     dataset['x'].append(images[i])
                     dataset['y'].append(labels[i])
@@ -104,6 +106,7 @@ def train_net(model, train, num_epochs, optimizer, criterion, batch_size, seed, 
             optimizer.step()  # update of weights
             i += 1
             torch.cuda.empty_cache()
+            print('Current loss:', running_loss)
         losses[j] = running_loss / i
         print("Epoch {}/{}, Loss: {:.3f}".format(epoch + 1, num_epochs, losses[j]))
         j += 1
