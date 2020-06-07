@@ -46,7 +46,7 @@ def main():
     print('num_epochs:', num_epochs)
 
     model = train_net(model, train, num_epochs, optimizer, criterion, args.batch_size, args.seed, device)
-    test_loss, accuracy = test_net(model, test, device)
+    test_loss, accuracy = test_net(model, test, device, args.batch_size, args.seed)
     print("Loss: {:.3f}, Accuracy: {:.3f}".format(test_loss, accuracy))
 
 
@@ -106,30 +106,32 @@ def train_net(model, train, num_epochs, optimizer, criterion, batch_size, seed, 
             optimizer.step()  # update of weights
             i += 1
             torch.cuda.empty_cache()
-            print('Current loss:', running_loss)
+            print('Current loss:', running_loss/i)
         losses[j] = running_loss / i
         print("Epoch {}/{}, Loss: {:.3f}".format(epoch + 1, num_epochs, losses[j]))
         j += 1
     return model
 
 
-def test_net(model, test, device):
+def test_net(model, test, device, batch_size, seed):
     model.eval()
     correct = 0
     test_loss = 0
-    input = model.process_x(test['x'])
-    labels = model.process_y(test['y'])
-    input_tensor = torch.from_numpy(input).permute(0, 3, 1, 2)
-    labels_tensor = torch.LongTensor(labels)
-    if torch.cuda.is_available:
-        input_tensor = input_tensor.to(device)
-        labels_tensor = labels_tensor.to(device)
-    with torch.no_grad():
-        outputs = model(input_tensor)
-        test_loss += F.cross_entropy(outputs, labels_tensor, reduction='sum').item()
-        _, predicted = torch.max(outputs.data, 1)  # same as torch.argmax()
-        total = labels_tensor.size(0)
-        correct += (predicted == labels_tensor).sum().item()
+    total = 0
+    for batched_x, batched_y in batch_data(test, batch_size, seed=seed):
+        input = model.process_x(batched_x)
+        labels = model.process_y(batched_y)
+        input_tensor = torch.from_numpy(input).permute(0, 3, 1, 2)
+        labels_tensor = torch.LongTensor(labels)
+        if torch.cuda.is_available:
+            input_tensor = input_tensor.to(device)
+            labels_tensor = labels_tensor.to(device)
+        with torch.no_grad():
+            outputs = model(input_tensor)
+            test_loss += F.cross_entropy(outputs, labels_tensor, reduction='sum').item()
+            _, predicted = torch.max(outputs.data, 1)  # same as torch.argmax()
+            total += labels_tensor.size(0)
+            correct += (predicted == labels_tensor).sum().item()
     accuracy = 100 * correct / total
     test_loss /= total
     return test_loss, accuracy
