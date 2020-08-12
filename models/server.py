@@ -1,13 +1,16 @@
 import numpy as np
 import torch
 
+from collections import OrderedDict
 from baseline_constants import BYTES_WRITTEN_KEY, BYTES_READ_KEY, LOCAL_COMPUTATIONS_KEY
 
+
 class Server:
-    
+
     def __init__(self, client_model):
         self.client_model = client_model
-        self.model = client_model.parameters()
+        # self.model = client_model.parameters()
+        self.model = client_model.state_dict()
         self.selected_clients = []
         self.updates = []
 
@@ -55,17 +58,16 @@ class Server:
         sys_metrics = {
             c.id: {BYTES_WRITTEN_KEY: 0,
                    BYTES_READ_KEY: 0,
-                   #LOCAL_COMPUTATIONS_KEY: 0
-                } for c in clients}
-#        print('n clients = ', clients.size())
+                   # LOCAL_COMPUTATIONS_KEY: 0
+                   } for c in clients}
+
         for c in clients:
-#            print('Loading client..')
-            c.model.load_state_dict(self.client_model.state_dict())
+            # c.model.load_state_dict(self.client_model.state_dict())
+            c.model.load_state_dict(self.model)
             num_samples, update = c.train(num_epochs, batch_size, minibatch)
-            #print(torch.cuda.memory_summary(torch.device('cuda:1')))
             sys_metrics[c.id][BYTES_READ_KEY] += c.model.size
             sys_metrics[c.id][BYTES_WRITTEN_KEY] += c.model.size
-            #sys_metrics[c.id][LOCAL_COMPUTATIONS_KEY] = comp
+            # sys_metrics[c.id][LOCAL_COMPUTATIONS_KEY] = comp
 
             self.updates.append((num_samples, update))
 
@@ -73,14 +75,28 @@ class Server:
 
     def update_model(self):
         total_weight = 0.
-        base = [0] * self.num_parameters(self.updates[0][1])
+        # base = [0] * self.num_parameters(self.updates[0][1])
+        # for (client_samples, client_model) in self.updates:
+        #     total_weight += client_samples
+        #     for i, v in enumerate(client_model):
+        #         base[i] += (client_samples * v.type(torch.FloatTensor))
+        # averaged_soln = [v / total_weight for v in base]
+        base = OrderedDict()
         for (client_samples, client_model) in self.updates:
             total_weight += client_samples
-            for i, v in enumerate(client_model):
-                base[i] += (client_samples * v.type(torch.FloatTensor))
-        averaged_soln = [v / total_weight for v in base]
+            for key, value in client_model.items():
+                if key in base:
+                    base[key] += (client_samples * value.type(torch.FloatTensor))
+                else:
+                    base[key] = (client_samples * value.type(torch.FloatTensor))
 
-        self.model = averaged_soln
+        averaged_soln = self.model
+        for key, value in base.items():
+            if total_weight is not 0:
+                averaged_soln[key] = value / total_weight
+
+        self.client_model.load_state_dict(averaged_soln)
+        self.model = self.client_model.state_dict()
         self.updates = []
 
     def test_model(self, clients_to_test, set_to_use='test'):
@@ -98,11 +114,12 @@ class Server:
             clients_to_test = self.selected_clients
 
         for client in clients_to_test:
-            client.model.load_state_dict(self.client_model.state_dict())
-            #client.model.set_params(self.model)
+            # client.model.load_state_dict(self.client_model.state_dict())
+            client.model.load_state_dict(self.model)
+            # client.model.set_params(self.model)
             c_metrics = client.test(set_to_use)
             metrics[client.id] = c_metrics
-        
+
         return metrics
 
     def get_clients_info(self, clients):
@@ -125,8 +142,8 @@ class Server:
         """Saves the server model on checkpoints/dataset/model.ckpt."""
         # Save server model
         self.client_model.load_state_dict(self.client_model.state_dict())
-        #self.client_model.set_params(self.model)
-        #model_sess = self.client_model.sess
+        # self.client_model.set_params(self.model)
+        # model_sess = self.client_model.sess
         torch.save(self.client_model, path)
         return path
 

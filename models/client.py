@@ -68,7 +68,8 @@ class Client:
         # self.flops ?
         self.losses = losses
         num_train_samples = len(data['y'])
-        update = self.model.parameters()
+        # update = self.model.parameters()
+        update = self.model.state_dict()
         return num_train_samples, update
 
     def run_epoch(self, data, batch_size, optimizer, criterion):
