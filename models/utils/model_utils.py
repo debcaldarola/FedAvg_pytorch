@@ -63,7 +63,7 @@ def read_data(train_data_dir, test_data_dir):
     train_clients, train_groups, train_data = read_dir(train_data_dir)
     test_clients, test_groups, test_data = read_dir(test_data_dir)
 
-    assert train_clients == test_clients
-    assert train_groups == test_groups
+    # assert train_clients == test_clients
+    # assert train_groups == test_groups
 
-    return train_clients, train_groups, train_data, test_data
+    return train_clients, train_groups, test_clients, test_groups, train_data, test_data

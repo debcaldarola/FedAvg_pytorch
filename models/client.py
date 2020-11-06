@@ -48,15 +48,12 @@ class Client:
 
             # Minibatch trains for only 1 epoch - multiple local epochs don't make sense!
             num_epochs = 1
-            #comp, update = self.model.train(data, num_epochs, num_data)
+
         # train model
         criterion = nn.CrossEntropyLoss()  # it already does softmax computation
         if torch.cuda.is_available:
-            #print('train')
-            #self.model = self.model.to(self.device)
             criterion = criterion.to(self.device)
-       
-        # optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
+
         optimizer = optim.SGD(self.model.parameters(), lr=self.lr)
         losses = np.empty(num_epochs)
         j = 0
@@ -64,11 +61,10 @@ class Client:
             self.model.train()
             losses[j] = self.run_epoch(data, num_data, optimizer, criterion)
             j += 1
-        # comp = num_epochs * (len(data['y']) // batch_size) * batch_size * self.flops
-        # self.flops ?
+
         self.losses = losses
         num_train_samples = len(data['y'])
-        # update = self.model.parameters()
+
         update = self.model.state_dict()
         return num_train_samples, update
 
@@ -106,17 +102,13 @@ class Client:
             data = self.train_data
         elif set_to_use == 'test' or set_to_use == 'val':
             data = self.eval_data
-        #if torch.cuda.is_available:
-            #self.model = self.model.to(self.device)
         self.model.eval()
         correct = 0
         total = 0
         test_loss = 0
         input = self.model.process_x(data['x'])
         labels = self.model.process_y(data['y'])
-        #print(input.shape)
         input_tensor = torch.from_numpy(input).permute(0, 3, 1, 2)
-        #input_tensor = torch.from_numpy(input)
         labels_tensor = torch.LongTensor(labels)
         if torch.cuda.is_available:
             input_tensor = input_tensor.to(self.device)
@@ -124,7 +116,6 @@ class Client:
         
         with torch.no_grad():
             outputs = self.model(input_tensor)
-            #test_loss += F.nll_loss(outputs, labels_tensor, reduction='sum').item()
             test_loss += F.cross_entropy(outputs, labels_tensor, reduction='sum').item()
             _, predicted = torch.max(outputs.data, 1)   # same as torch.argmax()
             total = labels_tensor.size(0)

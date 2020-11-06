@@ -46,7 +46,7 @@ def main():
         model_params_list[0] = args.lr
         model_params = tuple(model_params_list)
     # Setup GPU
-    device = torch.device('cuda:0')
+    device = torch.device(args.device if torch.cuda.is_available else 'cpu')
 
     # Create client model, and share params with server model
     client_model = ClientModel(*model_params, device)
@@ -56,22 +56,27 @@ def main():
     server = Server(client_model)
 
     # Create clients
-    clients = setup_clients(args.dataset, client_model, args.use_val_set, args.seed, device, args.lr)
-    client_ids, client_groups, client_num_samples = server.get_clients_info(clients)
-    print('Clients in Total: %d' % len(clients))
+    train_clients, test_clients = setup_clients(args.dataset, client_model, args.use_val_set, args.seed, device, args.lr)
+    train_client_ids, train_client_groups, train_client_num_samples = server.get_clients_info(train_clients)
+    test_client_ids, test_client_groups, test_client_num_samples = server.get_clients_info(test_clients)
+    if set(train_client_ids) == set(test_client_ids):
+        print('Clients in Total: %d' % len(train_clients))
+    else:
+        print('Clients in Total: %d' % int(len(train_clients) + len(test_clients)))
 
     # Initial status
     print('--- Random Initialization ---')
-    stat_writer_fn = get_stat_writer_function(client_ids, client_groups, client_num_samples, args)
+    stat_writer_fn = get_stat_writer_function(test_client_ids, test_client_groups, test_client_num_samples, args)
     sys_writer_fn = get_sys_writer_function(args)
-    print_stats(0, server, clients, client_num_samples, args, stat_writer_fn, args.use_val_set)
+    print_stats(0, server, train_clients, train_client_num_samples, test_clients, test_client_num_samples, args,
+                stat_writer_fn, args.use_val_set)
 
     # Simulate training
     for i in range(num_rounds):
         print('--- Round %d of %d: Training %d Clients ---' % (i + 1, num_rounds, clients_per_round))
 
         # Select clients to train during this round
-        server.select_clients(i, online(clients), num_clients=clients_per_round)
+        server.select_clients(i, online(train_clients), num_clients=clients_per_round)
         c_ids, c_groups, c_num_samples = server.get_clients_info(server.selected_clients)
         # Simulate server model training on selected clients' data
         sys_metrics = server.train_model(num_epochs=args.num_epochs, batch_size=args.batch_size,
@@ -82,7 +87,8 @@ def main():
 
         # Test model
         if (i + 1) % eval_every == 0 or (i + 1) == num_rounds:
-            print_stats(i + 1, server, clients, client_num_samples, args, stat_writer_fn, args.use_val_set)
+            print_stats(i + 1, server, train_clients, train_client_num_samples, test_clients, test_client_num_samples,
+                        args, stat_writer_fn, args.use_val_set)
 
     # Save server model
     ckpt_path = os.path.join('checkpoints', args.dataset)
@@ -114,11 +120,12 @@ def setup_clients(dataset, model=None, use_val_set=False, seed=None, device=None
     train_data_dir = os.path.join('..', 'data', dataset, 'data', 'train')
     test_data_dir = os.path.join('..', 'data', dataset, 'data', eval_set)
 
-    users, groups, train_data, test_data = read_data(train_data_dir, test_data_dir)
+    train_users, train_groups, test_users, test_groups, train_data, test_data = read_data(train_data_dir, test_data_dir)
 
-    clients = create_clients(users, groups, train_data, test_data, model, seed, device, lr)
+    train_clients = create_clients(train_users, train_groups, train_data, test_data, model, seed, device, lr)
+    test_clients = create_clients(test_users, test_groups, train_data, test_data, model, seed, device, lr)
 
-    return clients
+    return train_clients, test_clients
 
 
 def get_stat_writer_function(ids, groups, num_samples, args):
@@ -140,14 +147,14 @@ def get_sys_writer_function(args):
 
 
 def print_stats(
-        num_round, server, clients, num_samples, args, writer, use_val_set):
-    train_stat_metrics = server.test_model(clients, set_to_use='train')
-    print_metrics(train_stat_metrics, num_samples, prefix='train_')
+        num_round, server, train_clients, train_num_samples, test_clients, test_num_samples, args, writer, use_val_set):
+    train_stat_metrics = server.test_model(train_clients, set_to_use='train')
+    print_metrics(train_stat_metrics, train_num_samples, prefix='train_')
     writer(num_round, train_stat_metrics, 'train')
 
     eval_set = 'test' if not use_val_set else 'val'
-    test_stat_metrics = server.test_model(clients, set_to_use=eval_set)
-    print_metrics(test_stat_metrics, num_samples, prefix='{}_'.format(eval_set))
+    test_stat_metrics = server.test_model(test_clients, set_to_use=eval_set)
+    print_metrics(test_stat_metrics, test_num_samples, prefix='{}_'.format(eval_set))
     writer(num_round, test_stat_metrics, eval_set)
 
 
