@@ -74,11 +74,8 @@ class Client:
         for batched_x, batched_y in batch_data(data, batch_size, seed=self.seed):
             input_data = self.model.process_x(batched_x)
             target_data = self.model.process_y(batched_y)
-            input_data_tensor = torch.from_numpy(input_data).type(torch.FloatTensor).permute(0, 3, 1, 2)
-            target_data_tensor = torch.LongTensor(target_data)
-            if torch.cuda.is_available:
-                input_data_tensor = input_data_tensor.to(self.device)
-                target_data_tensor = target_data_tensor.to(self.device)
+            input_data_tensor = torch.from_numpy(input_data).type(torch.FloatTensor).permute(0, 3, 1, 2).to(self.device)
+            target_data_tensor = torch.LongTensor(target_data).to(self.device)
             optimizer.zero_grad()
             outputs = self.model(input_data_tensor)
             loss = criterion(outputs, target_data_tensor)  # loss between the prediction and ground truth (labels)
@@ -87,6 +84,9 @@ class Client:
             optimizer.step()  # update of weights
             i += 1
             torch.cuda.empty_cache()
+        if i == 0:
+            print("Not running epoch", self.id)
+            return 0
         return running_loss/i
 
     def test(self, set_to_use='test'):
@@ -117,8 +117,12 @@ class Client:
             _, predicted = torch.max(outputs.data, 1)   # same as torch.argmax()
             total = labels_tensor.size(0)
             correct += (predicted == labels_tensor).sum().item()
-        accuracy = 100 * correct / total
-        test_loss /= total
+        if total == 0:
+            accuracy = 0
+            test_loss = 0
+        else:
+            accuracy = 100 * correct / total
+            test_loss /= total
         return {ACCURACY_KEY: accuracy, 'loss': test_loss}
 
     @property
