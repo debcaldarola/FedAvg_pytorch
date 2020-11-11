@@ -74,7 +74,7 @@ class Client:
         for batched_x, batched_y in batch_data(data, batch_size, seed=self.seed):
             input_data = self.model.process_x(batched_x)
             target_data = self.model.process_y(batched_y)
-            input_data_tensor = torch.from_numpy(input_data).permute(0, 3, 1, 2)
+            input_data_tensor = torch.from_numpy(input_data).type(torch.FloatTensor).permute(0, 3, 1, 2)
             target_data_tensor = torch.LongTensor(target_data)
             if torch.cuda.is_available:
                 input_data_tensor = input_data_tensor.to(self.device)
@@ -108,11 +108,8 @@ class Client:
         test_loss = 0
         input = self.model.process_x(data['x'])
         labels = self.model.process_y(data['y'])
-        input_tensor = torch.from_numpy(input).permute(0, 3, 1, 2)
-        labels_tensor = torch.LongTensor(labels)
-        if torch.cuda.is_available:
-            input_tensor = input_tensor.to(self.device)
-            labels_tensor = labels_tensor.to(self.device)
+        input_tensor = torch.from_numpy(input).type(torch.FloatTensor).permute(0, 3, 1, 2).to(self.device)
+        labels_tensor = torch.LongTensor(labels).to(self.device)
         
         with torch.no_grad():
             outputs = self.model(input_tensor)
