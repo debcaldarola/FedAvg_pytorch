@@ -35,6 +35,11 @@ MAIN_PARAMS = {
         'small': (1000, 10, 5),
         'medium': (2500, 50, 10),
         'large': (5000, 100, 20)
+    },
+    'cifar100': {
+        'small': (1000, 10, 5),
+        'medium': (2500, 50, 10),
+        'large': (5000, 100, 20)
     }
 }
 """dict: Specifies execution parameters (tot_num_rounds, eval_every_num_rounds, clients_per_round)"""
@@ -48,7 +53,8 @@ MODEL_PARAMS = {
     'celeba.cnn': (0.1, 2), # lr, num_classes
     'synthetic.log_reg': (0.0003, 5, 60), # lr, num_classes, input_dim
     'reddit.stacked_lstm': (0.0003, 10, 256, 2), # lr, seq_len, num_hidden, num_layers
-    'cifar10.cnn': (0.01, 10)
+    'cifar10.cnn': (0.01, 10),
+    'cifar100.cnn': (0.01, 100)
 }
 """dict: Model specific parameter specification"""
 
