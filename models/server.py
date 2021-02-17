@@ -75,12 +75,6 @@ class Server:
 
     def update_model(self):
         total_weight = 0.
-        # base = [0] * self.num_parameters(self.updates[0][1])
-        # for (client_samples, client_model) in self.updates:
-        #     total_weight += client_samples
-        #     for i, v in enumerate(client_model):
-        #         base[i] += (client_samples * v.type(torch.FloatTensor))
-        # averaged_soln = [v / total_weight for v in base]
         base = OrderedDict()
         for (client_samples, client_model) in self.updates:
             total_weight += client_samples
@@ -99,7 +93,7 @@ class Server:
         self.model = self.client_model.state_dict()
         self.updates = []
 
-    def test_model(self, clients_to_test, set_to_use='test'):
+    def test_model(self, clients_to_test, batch_size, set_to_use='test'):
         """Tests self.model on given clients.
 
         Tests model on self.selected_clients if clients_to_test=None.
@@ -117,7 +111,7 @@ class Server:
             # client.model.load_state_dict(self.client_model.state_dict())
             client.model.load_state_dict(self.model)
             # client.model.set_params(self.model)
-            c_metrics = client.test(set_to_use)
+            c_metrics = client.test(batch_size, set_to_use)
             metrics[client.id] = c_metrics
 
         return metrics

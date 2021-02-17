@@ -2,8 +2,11 @@
 import importlib
 import numpy as np
 import os
+# os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
+# os.environ['CUDA_VISIBLE_DEVICES'] = "1,2,3"
 import random
 import torch
+import torch.nn as nn
 
 import metrics.writer as metrics_writer
 
@@ -45,13 +48,24 @@ def main():
         model_params_list = list(model_params)
         model_params_list[0] = args.lr
         model_params = tuple(model_params_list)
+
     # Setup GPU
     device = torch.device(args.device if torch.cuda.is_available else 'cpu')
+    # if args.dataset == 'glv2':
+    #     device = 'cuda:' + str(sorted(list(range(torch.cuda.device_count())), reverse=True)[0])
 
     # Create client model, and share params with server model
-    client_model = ClientModel(*model_params, device)
-    if torch.cuda.is_available:
-        client_model = client_model.to(device)
+    if args.dataset == 'glv2':
+        if torch.cuda.current_device() == 0:
+            torch.cuda.set_device(1)
+        model = torch.hub.load('pytorch/vision:v0.6.0', 'mobilenet_v2', pretrained=True).to(device)
+        model.classifier[1] = nn.Linear(in_features=1280, out_features=model_params[1], bias=True).to(device)
+        model = nn.DataParallel(model)    # device_ids=sorted(list(range(torch.cuda.device_count())), reverse=True)
+        client_model = ClientModel(*model_params, device, model)
+    else:
+        client_model = ClientModel(*model_params, device)
+    client_model = client_model.to(device)
+
     # Create server
     server = Server(client_model)
 
@@ -150,12 +164,12 @@ def get_sys_writer_function(args):
 
 def print_stats(
         num_round, server, train_clients, train_num_samples, test_clients, test_num_samples, args, writer, use_val_set):
-    train_stat_metrics = server.test_model(train_clients, set_to_use='train')
+    train_stat_metrics = server.test_model(train_clients, args.batch_size, set_to_use='train')
     print_metrics(train_stat_metrics, train_num_samples, prefix='train_')
     writer(num_round, train_stat_metrics, 'train')
 
     eval_set = 'test' if not use_val_set else 'val'
-    test_stat_metrics = server.test_model(test_clients, set_to_use=eval_set)
+    test_stat_metrics = server.test_model(test_clients, args.batch_size, set_to_use=eval_set)
     print_metrics(test_stat_metrics, test_num_samples, prefix='{}_'.format(eval_set))
     writer(num_round, test_stat_metrics, eval_set)
 

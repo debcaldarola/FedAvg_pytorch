@@ -9,6 +9,8 @@ import torch.nn.functional as F
 from utils.model_utils import batch_data
 from baseline_constants import ACCURACY_KEY
 
+GLV2 = False
+
 class Client:
     
     def __init__(self, seed, client_id, lr, group=None, train_data={'x' : [],'y' : []}, eval_data={'x' : [],'y' : []},
@@ -50,10 +52,7 @@ class Client:
             num_epochs = 1
 
         # train model
-        criterion = nn.CrossEntropyLoss()  # it already does softmax computation
-        if torch.cuda.is_available:
-            criterion = criterion.to(self.device)
-
+        criterion = nn.CrossEntropyLoss().to(self.device)  # it already does softmax computation
         optimizer = optim.SGD(self.model.parameters(), lr=self.lr)
         losses = np.empty(num_epochs)
         j = 0
@@ -72,9 +71,16 @@ class Client:
         running_loss = 0.0
         i = 0
         for batched_x, batched_y in batch_data(data, batch_size, seed=self.seed):
-            input_data = self.model.process_x(batched_x)
-            target_data = self.model.process_y(batched_y)
-            input_data_tensor = torch.from_numpy(input_data).type(torch.FloatTensor).permute(0, 3, 1, 2).to(self.device)
+            if isinstance(self.model, nn.DataParallel):
+                input_data = self.model.module.process_x(batched_x)
+                target_data = self.model.module.process_y(batched_y)
+            else:
+                input_data = self.model.process_x(batched_x)
+                target_data = self.model.process_y(batched_y)
+            if GLV2:
+                input_data_tensor = torch.from_numpy(input_data).type(torch.FloatTensor).to(self.device)
+            else:
+                input_data_tensor = torch.from_numpy(input_data).type(torch.FloatTensor).permute(0, 3, 1, 2).to(self.device)
             target_data_tensor = torch.LongTensor(target_data).to(self.device)
             optimizer.zero_grad()
             outputs = self.model(input_data_tensor)
@@ -83,13 +89,13 @@ class Client:
             running_loss += loss.item()
             optimizer.step()  # update of weights
             i += 1
-            torch.cuda.empty_cache()
+            # torch.cuda.empty_cache()
         if i == 0:
             print("Not running epoch", self.id)
             return 0
         return running_loss/i
 
-    def test(self, set_to_use='test'):
+    def test(self, batch_size, set_to_use='test'):
         """Tests self.model on self.test_data.
 
         Args:
@@ -106,17 +112,26 @@ class Client:
         correct = 0
         total = 0
         test_loss = 0
-        input = self.model.process_x(data['x'])
-        labels = self.model.process_y(data['y'])
-        input_tensor = torch.from_numpy(input).type(torch.FloatTensor).permute(0, 3, 1, 2).to(self.device)
-        labels_tensor = torch.LongTensor(labels).to(self.device)
-        
-        with torch.no_grad():
-            outputs = self.model(input_tensor)
-            test_loss += F.cross_entropy(outputs, labels_tensor, reduction='sum').item()
-            _, predicted = torch.max(outputs.data, 1)   # same as torch.argmax()
-            total = labels_tensor.size(0)
-            correct += (predicted == labels_tensor).sum().item()
+
+        for batched_x, batched_y in batch_data(data, batch_size, self.seed):
+            if isinstance(self.model, nn.DataParallel):
+                input = self.model.module.process_x(batched_x)
+                labels = self.model.module.process_y(batched_y)
+            else:
+                input = self.model.process_x(batched_x)
+                labels = self.model.process_y(batched_y)
+            if GLV2:
+                input_tensor = torch.from_numpy(input).type(torch.FloatTensor).to(self.device)
+            else:
+                input_tensor = torch.from_numpy(input).type(torch.FloatTensor).permute(0, 3, 1, 2).to(self.device)
+            labels_tensor = torch.LongTensor(labels).to(self.device)
+
+            with torch.no_grad():
+                outputs = self.model(input_tensor)
+                test_loss += F.cross_entropy(outputs, labels_tensor, reduction='sum').item()
+                _, predicted = torch.max(outputs.data, 1)   # same as torch.argmax()
+                total += labels_tensor.size(0)
+                correct += (predicted == labels_tensor).sum().item()
         if total == 0:
             accuracy = 0
             test_loss = 0

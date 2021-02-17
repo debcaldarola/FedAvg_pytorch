@@ -6,6 +6,7 @@ import torch.nn as nn
 import torch.optim as optim
 import numpy as np
 import torch.nn.functional as F
+import matplotlib.pyplot as plt
 
 from utils.args import parse_args
 from baseline_constants import MODEL_PARAMS
@@ -19,9 +20,10 @@ def main():
         print('Please specify a valid dataset and a valid model.')
     model_path = '%s.%s' % (args.dataset, args.model)
     print('############################## %s ##############################' % model_path)
-    print('Offline test of one client')
+    print('Offline test on one client')
+
     # Setup GPU
-    device = torch.device('cuda:0')
+    device = torch.device(args.device if torch.cuda.is_available() else 'cpu')
 
     model_params = MODEL_PARAMS[model_path]
     if args.lr != -1:
@@ -36,28 +38,32 @@ def main():
     # Create model
     mod = importlib.import_module(model_path)
     ClientModel = getattr(mod, 'ClientModel')
-    model = ClientModel(*model_params, device)
-    criterion = nn.CrossEntropyLoss()
-    if torch.cuda.is_available:
-        model = model.to(device)
-        criterion = criterion.to(device)
+    model = ClientModel(*model_params, device).to(device)
+    criterion = nn.CrossEntropyLoss().to(device)
     optimizer = optim.SGD(model.parameters(), lr=args.lr)
     num_epochs = args.num_epochs
     print('num_epochs:', num_epochs)
-
+    print("--- Training model ---")
     model = train_net(model, train, num_epochs, optimizer, criterion, args.batch_size, args.seed, device)
+
+    print("--- Testing model ---")
     test_loss, accuracy = test_net(model, test, device, args.batch_size, args.seed)
     print("Loss: {:.3f}, Accuracy: {:.3f}".format(test_loss, accuracy))
 
+    print("--- Saving model ---")
+    ckpt_path = os.path.join('checkpoints', args.dataset)
+    if not os.path.exists(ckpt_path):
+        os.makedirs(ckpt_path)
+    save_path = os.path.join(ckpt_path, '{}.ckpt'.format('offline_'+args.model))
+    torch.save(model.state_dict(), save_path)
+    print("Model saved in", save_path)
 
 def setup_dataset(dataset, use_val_set=False):
     eval_set = 'test' if not use_val_set else 'val'
     train_data_dir = os.path.join('..', 'data', dataset, 'data', 'train')
     test_data_dir = os.path.join('..', 'data', dataset, 'data', eval_set)
     train_set = create_dataset(train_data_dir)
-    print(train_set)
     test_set = create_dataset(test_data_dir)
-    print(test_set)
     return train_set, test_set
 
 
@@ -93,11 +99,8 @@ def train_net(model, train, num_epochs, optimizer, criterion, batch_size, seed, 
         for batched_x, batched_y in batch_data(train, batch_size, seed=seed):
             input_data = model.process_x(batched_x)
             target_data = model.process_y(batched_y)
-            input_data_tensor = torch.from_numpy(input_data).permute(0, 3, 1, 2)
-            target_data_tensor = torch.LongTensor(target_data)
-            if torch.cuda.is_available:
-                input_data_tensor = input_data_tensor.to(device)
-                target_data_tensor = target_data_tensor.to(device)
+            input_data_tensor = torch.from_numpy(input_data).permute(0, 3, 1, 2).to(device)
+            target_data_tensor = torch.LongTensor(target_data).to(device)
             optimizer.zero_grad()
             outputs = model(input_data_tensor)
             loss = criterion(outputs, target_data_tensor)  # loss between the prediction and ground truth (labels)
@@ -106,10 +109,11 @@ def train_net(model, train, num_epochs, optimizer, criterion, batch_size, seed, 
             optimizer.step()  # update of weights
             i += 1
             torch.cuda.empty_cache()
-            print('Current loss:', running_loss/i)
+            # print('Current loss:', running_loss/i)
         losses[j] = running_loss / i
         print("Epoch {}/{}, Loss: {:.3f}".format(epoch + 1, num_epochs, losses[j]))
         j += 1
+    plot_score(losses, num_epochs, 'Offline model CelebA - Train loss', 'train_loss', 'celeba_offline_train_loss')
     return model
 
 
@@ -121,11 +125,8 @@ def test_net(model, test, device, batch_size, seed):
     for batched_x, batched_y in batch_data(test, batch_size, seed=seed):
         input = model.process_x(batched_x)
         labels = model.process_y(batched_y)
-        input_tensor = torch.from_numpy(input).permute(0, 3, 1, 2)
-        labels_tensor = torch.LongTensor(labels)
-        if torch.cuda.is_available:
-            input_tensor = input_tensor.to(device)
-            labels_tensor = labels_tensor.to(device)
+        input_tensor = torch.from_numpy(input).permute(0, 3, 1, 2).to(device)
+        labels_tensor = torch.LongTensor(labels).to(device)
         with torch.no_grad():
             outputs = model(input_tensor)
             test_loss += F.cross_entropy(outputs, labels_tensor, reduction='sum').item()
@@ -136,6 +137,18 @@ def test_net(model, test, device, batch_size, seed):
     test_loss /= total
     return test_loss, accuracy
 
+def plot_score(scores, n_epochs, title, ylabel, fig_name):
+    epochs = range(n_epochs)
+    plt.plot(epochs, scores, 'g', label=ylabel)
+    plt.title(title)
+    plt.xlabel('Epochs')
+    plt.ylabel(ylabel)
+    plt.legend()
+    path = os.path.join('.', 'figures')
+    if not os.path.exists(path):
+        os.mkdir(path)
+    path = os.path.join('.', path, fig_name)
+    plt.savefig(path)
 
 if __name__ == '__main__':
     main()

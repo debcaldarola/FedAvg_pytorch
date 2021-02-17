@@ -49,15 +49,8 @@ class ClientModel(nn.Module):
         x = self.layer2(x)
         x = self.layer3(x)
         x = self.layer4(x)
-        #print(x.shape)
         x = torch.reshape(x,(x.shape[0], -1))
-        #print(x.shape)
-        # x = F.dropout(x, p=0.5, training=self.training)
-        #FC layer
-        #print(x.shape)
         logits = self.fc1(x)
-        #logits = self.fc2(x)
-#        loss = nn.CrossEntropyLoss()
         return logits
 
     def process_x(self, raw_x_batch):
