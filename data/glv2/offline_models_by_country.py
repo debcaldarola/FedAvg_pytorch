@@ -130,55 +130,60 @@ def main():
 
     countries, domains = get_countries_and_domains(df)
 
-    if args.only_eval:
-        df_results = pd.read_csv('offline_test_by_country.csv')
-        df_results['eval_accuracy'] = ""
-        df_results['eval_loss'] = ""
-        df_results['eval_n_images'] = ""
-        # Load trained models
-        print("--- Loading {:d} models ---".format(n_models))
-        models = []
-        load_path = os.path.join('preprocess', 'checkpoints')
-        for i in range(n_models):
-            chkpt = 'model' + '_' + str(i)
-            model_path = os.path.join(load_path, chkpt)
-            m = torch.load(model_path).to(device)
-            models.append(m)
-
-        print("--- Evaluating models ---")
-        tot_acc = 0
-        tot_loss = 0
-        for i, domain in enumerate(domains):
-            print(countries[i], "({:d})".format(domain))
-            input_data = df[df['domain'] == domain]['image_id'].tolist()
-            labels = df[df['domain'] == domain]['class'].to_numpy()
-            models[i].eval()
-            accuracy, loss = test(models[i], input_data, labels, batch_size=batch_size, device=device)
-            tot_acc += accuracy
-            tot_loss += loss
-            print("\tEval accuracy: {:.2f}. Eval loss: {:.2f}".format(accuracy, loss))
-            df_results.loc[(df_results['country'] == countries[i]), 'eval_accuracy'] = accuracy
-            df_results.loc[(df_results['country'] == countries[i]), 'eval_loss'] = loss
-            df_results.loc[(df_results['country'] == countries[i]), 'eval_n_images'] = len(labels)
-
-        df_results.to_csv('offline_models_by_country_with_eval.csv')
-        return
+    # if args.only_eval:
+    #     df_results = pd.read_csv('offline_test_by_country.csv')
+    #     df_results['eval_accuracy'] = ""
+    #     df_results['eval_loss'] = ""
+    #     df_results['eval_n_images'] = ""
+    #     # Load trained models
+    #     print("--- Loading {:d} models ---".format(n_models))
+    #     models = []
+    #     load_path = os.path.join('preprocess', 'checkpoints')
+    #     for i in range(n_models):
+    #         chkpt = 'model' + '_' + str(i)
+    #         model_path = os.path.join(load_path, chkpt)
+    #         m = torch.load(model_path).to(device)
+    #         models.append(m)
+    #
+    #     print("--- Evaluating models ---")
+    #     tot_acc = 0
+    #     tot_loss = 0
+    #     for i, domain in enumerate(domains):
+    #         print(countries[i], "({:d})".format(domain))
+    #         input_data = df[df['domain'] == domain]['image_id'].tolist()
+    #         labels = df[df['domain'] == domain]['class'].to_numpy()
+    #         models[i].eval()
+    #         accuracy, loss = test(models[i], input_data, labels, batch_size=batch_size, device=device)
+    #         tot_acc += accuracy
+    #         tot_loss += loss
+    #         print("\tEval accuracy: {:.2f}. Eval loss: {:.2f}".format(accuracy, loss))
+    #         df_results.loc[(df_results['country'] == countries[i]), 'eval_accuracy'] = accuracy
+    #         df_results.loc[(df_results['country'] == countries[i]), 'eval_loss'] = loss
+    #         df_results.loc[(df_results['country'] == countries[i]), 'eval_n_images'] = len(labels)
+    #
+    #     df_results.to_csv('offline_models_by_country_with_eval.csv')
+    #     return
 
     models = []
     model = torch.hub.load('pytorch/vision:v0.6.0', 'mobilenet_v2', pretrained=True).to(device)
-    model = nn.DataParallel(model, device_ids=[0, 1, 2, 3])
     model.module.classifier[1] = nn.Linear(in_features=1280, out_features=n_classes, bias=True).to(device)
+    model = nn.DataParallel(model, device_ids=[0, 1, 2, 3])
 
     for i in range(n_models):
         m = torch.hub.load('pytorch/vision:v0.6.0', 'mobilenet_v2', pretrained=True).to(device)
-        m = nn.DataParallel(m, device_ids=[0, 1, 2, 3])
         m.module.classifier[1] = nn.Linear(in_features=1280, out_features=n_classes, bias=True).to(device)
+        m = nn.DataParallel(m, device_ids=[0, 1, 2, 3])
         m.load_state_dict(model.state_dict())
         models.append(m)
+
+    results = pd.DataFrame(columns=['country', 'eval_accuracy', 'eval_loss', 'eval_n_images', 'test_accuracy',
+                                    'test_loss', 'test_n_images',])
+    results['country'] = pd.Series(countries)
 
     # Train
     for i, domain in enumerate(domains):
         print("Model {:d} ({:s})".format(i, countries[i]))
+        print("\tTraining...")
         models[i].train()
         input_data = df[df['domain'] == domain]['image_id'].tolist()
         labels = df[df['domain'] == domain]['class'].to_numpy()
@@ -186,13 +191,18 @@ def main():
         criterion = nn.CrossEntropyLoss().to(device)
         train(model=models[i], train_dataset=input_data, labels=labels, criterion=criterion,
               optimizer=optimizer, n_epochs=n_epochs, batch_size=batch_size, device=device)
+        print("\tEvaluating...")
+        models[i].eval()
+        accuracy, loss = test(models[i], input_data, labels, batch_size=batch_size, device=device)
+        print("\tEval accuracy: {:.2f}. Eval loss: {:.2f}".format(accuracy, loss))
+        results.loc[(results['country'] == countries[i]), 'eval_accuracy'] = accuracy
+        results.loc[(results['country'] == countries[i]), 'eval_loss'] = loss
+        results.loc[(results['country'] == countries[i]), 'eval_n_images'] = len(labels)
 
     # Test
     df_test = pd.read_csv(os.path.join(TEST_FILE_DIR, args.test_file))
     tot_acc = 0
     tot_loss = 0
-    results = pd.DataFrame(columns=['country', 'accuracy', 'loss', 'n_images'])
-    results['country'] = pd.Series(countries)
     print("--- Testing ---")
     for i, domain in enumerate(domains):
         if df_test[df_test['domain'] == domain].empty:
@@ -208,9 +218,9 @@ def main():
         tot_acc += accuracy
         tot_loss += loss
         print("\tTest accuracy: {:.2f}. Test loss: {:.2f}".format(accuracy, loss))
-        results.loc[(results['country'] == countries[i]), 'accuracy'] = accuracy
-        results.loc[(results['country'] == countries[i]), 'loss'] = loss
-        results.loc[(results['country'] == countries[i]), 'n_images'] = len(test_labels)
+        results.loc[(results['country'] == countries[i]), 'test_accuracy'] = accuracy
+        results.loc[(results['country'] == countries[i]), 'test_loss'] = loss
+        results.loc[(results['country'] == countries[i]), 'test_n_images'] = len(test_labels)
 
     print("Average accuracy: {:.2f}. Average loss: {:.2f}".format(tot_acc/len(models), tot_loss/len(models)))
 

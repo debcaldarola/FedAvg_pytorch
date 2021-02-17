@@ -64,13 +64,20 @@ def main():
     print("--- Clustering clients ---")
     kmeans = KMeans(n_clusters=args.num_clusters, random_state=0, verbose=1).fit(clients_models, sample_weight=clients_weight)
     print("Number of iterations:", kmeans.n_iter_)
-    print("Assignments:", kmeans.labels_)
+    print("Assignments:", kmeans.labels_, len(kmeans.labels_))
+    print("Cluster centers:", kmeans.cluster_centers_)
 
     # Save assignments
-    clients_assignments = dict.fromkeys(range(args.num_clusters), [])
+    clients_assignments = dict.fromkeys(range(args.num_clusters))
     labels = kmeans.labels_
     for l, c in zip(labels, clients):
+        if not clients_assignments[l]:
+            clients_assignments[l] = []
         clients_assignments[l].append(c.id)
+
+    print("Clusters info:")
+    for i in range(args.num_clusters):
+        print("Cluster {:d}: {:d} clients".format(i, len(clients_assignments[i])))
 
     filename = args.dataset + '_kmeans_' + str(args.num_clusters) + '.json'
     with open(filename, "w") as write_file:
