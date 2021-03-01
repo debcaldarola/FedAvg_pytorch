@@ -9,18 +9,21 @@ IMAGES_DIR = os.path.join('..', 'data', 'glv2', 'data', 'raw', 'train')
 IMAGE_SIZE = 224
 
 class ClientModel(nn.Module):
-    def __init__(self, lr, num_classes, device, model):
+    def __init__(self, lr, num_classes, device):
         super(ClientModel, self).__init__()
         self.device = device
         self.num_classes = num_classes
-        self.feature_extractor = nn.Sequential(*list(model.children())[:-1])
-        self.classifier = nn.Sequential(*list(model.children())[:1])
+        model = torch.hub.load('pytorch/vision:v0.6.0', 'mobilenet_v2', pretrained=True)
+        model.classifier[1] = nn.Linear(in_features=1280, out_features=num_classes, bias=True)
+        self.features = nn.Sequential(*list(model.children())[:-1])
+        self.classifier = nn.Sequential(*list(model.children())[-1])
         state_dict = dict(zip(self.state_dict().keys(), model.state_dict().values()))
         self.load_state_dict(state_dict)
         self.size = self._model_size()
 
     def forward(self, x):
-        x = self.feature_extractor(x)
+        x = self.features(x)
+        x = x.reshape(x.shape[0], -1)
         x = self.classifier(x)
         return x
 

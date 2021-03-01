@@ -7,13 +7,10 @@ import os
 import random
 import torch
 import torch.nn as nn
-
 import metrics.writer as metrics_writer
-
 from baseline_constants import MAIN_PARAMS, MODEL_PARAMS
 from client import Client
 from server import Server
-
 from utils.args import parse_args
 from utils.model_utils import read_data
 
@@ -42,7 +39,6 @@ def main():
     eval_every = args.eval_every if args.eval_every != -1 else tup[1]
     clients_per_round = args.clients_per_round if args.clients_per_round != -1 else tup[2]
 
-    # Create 2 models
     model_params = MODEL_PARAMS[model_path]
     if args.lr != -1:
         model_params_list = list(model_params)
@@ -51,26 +47,18 @@ def main():
 
     # Setup GPU
     device = torch.device(args.device if torch.cuda.is_available else 'cpu')
-    # if args.dataset == 'glv2':
-    #     device = 'cuda:' + str(sorted(list(range(torch.cuda.device_count())), reverse=True)[0])
 
     # Create client model, and share params with server model
-    if args.dataset == 'glv2':
-        if torch.cuda.current_device() == 0:
-            torch.cuda.set_device(1)
-        model = torch.hub.load('pytorch/vision:v0.6.0', 'mobilenet_v2', pretrained=True).to(device)
-        model.classifier[1] = nn.Linear(in_features=1280, out_features=model_params[1], bias=True).to(device)
-        model = nn.DataParallel(model)    # device_ids=sorted(list(range(torch.cuda.device_count())), reverse=True)
-        client_model = ClientModel(*model_params, device, model)
-    else:
-        client_model = ClientModel(*model_params, device)
+    client_model = ClientModel(*model_params, device)
+    if args.model == 'mobilenet':
+        client_model = nn.DataParallel(client_model)
     client_model = client_model.to(device)
-
     # Create server
     server = Server(client_model)
 
     # Create clients
-    train_clients, test_clients = setup_clients(args.dataset, client_model, args.use_val_set, args.seed, device, args.lr)
+    train_clients, test_clients = setup_clients(args.dataset, client_model, args.use_val_set, args.seed, device,
+                                                args.lr, args.model=='mobilenet')
     train_client_ids, train_client_groups, train_client_num_samples = server.get_clients_info(train_clients)
     test_client_ids, test_client_groups, test_client_num_samples = server.get_clients_info(test_clients)
     if set(train_client_ids) == set(test_client_ids):
@@ -92,7 +80,7 @@ def main():
         # Select clients to train during this round
         server.select_clients(i, online(train_clients), num_clients=clients_per_round)
         c_ids, c_groups, c_num_samples = server.get_clients_info(server.selected_clients)
-        print("Selected clients:", c_ids)
+        # print("Selected clients:", c_ids)
 
         # Simulate server model training on selected clients' data
         sys_metrics = server.train_model(num_epochs=args.num_epochs, batch_size=args.batch_size,
@@ -119,14 +107,14 @@ def online(clients):
     return clients
 
 
-def create_clients(users, groups, train_data, test_data, model, seed, device, lr):
+def create_clients(users, groups, train_data, test_data, model, seed, device, lr, mobilenet=False):
     if len(groups) == 0:
         groups = [[] for _ in users]
-    clients = [Client(seed, u, lr, g, train_data[u], test_data[u], model, device) for u, g in zip(users, groups)]
+    clients = [Client(seed, u, lr, g, train_data[u], test_data[u], model, device, mobilenet=mobilenet) for u, g in zip(users, groups)]
     return clients
 
 
-def setup_clients(dataset, model=None, use_val_set=False, seed=None, device=None, lr=None):
+def setup_clients(dataset, model=None, use_val_set=False, seed=None, device=None, lr=None, mobilenet=False):
     """Instantiates clients based on given train and test data directories.
 
     Return:
@@ -138,8 +126,8 @@ def setup_clients(dataset, model=None, use_val_set=False, seed=None, device=None
 
     train_users, train_groups, test_users, test_groups, train_data, test_data = read_data(train_data_dir, test_data_dir)
 
-    train_clients = create_clients(train_users, train_groups, train_data, test_data, model, seed, device, lr)
-    test_clients = create_clients(test_users, test_groups, train_data, test_data, model, seed, device, lr)
+    train_clients = create_clients(train_users, train_groups, train_data, test_data, model, seed, device, lr, mobilenet)
+    test_clients = create_clients(test_users, test_groups, train_data, test_data, model, seed, device, lr, mobilenet)
 
     return train_clients, test_clients
 

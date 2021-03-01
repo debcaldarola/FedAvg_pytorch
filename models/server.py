@@ -65,8 +65,12 @@ class Server:
             # c.model.load_state_dict(self.client_model.state_dict())
             c.model.load_state_dict(self.model)
             num_samples, update = c.train(num_epochs, batch_size, minibatch)
-            sys_metrics[c.id][BYTES_READ_KEY] += c.model.size
-            sys_metrics[c.id][BYTES_WRITTEN_KEY] += c.model.size
+            if isinstance(c.model, torch.nn.DataParallel):
+                sys_metrics[c.id][BYTES_READ_KEY] += c.model.module.size
+                sys_metrics[c.id][BYTES_WRITTEN_KEY] += c.model.module.size
+            else:
+                sys_metrics[c.id][BYTES_READ_KEY] += c.model.size
+                sys_metrics[c.id][BYTES_WRITTEN_KEY] += c.model.size
             # sys_metrics[c.id][LOCAL_COMPUTATIONS_KEY] = comp
 
             self.updates.append((num_samples, update))
@@ -86,7 +90,7 @@ class Server:
 
         averaged_soln = self.model
         for key, value in base.items():
-            if total_weight is not 0:
+            if total_weight != 0:
                 averaged_soln[key] = value / total_weight
 
         self.client_model.load_state_dict(averaged_soln)

@@ -1,7 +1,6 @@
 import numpy as np
 import os
 import torch.nn as nn
-import torch.nn.functional as F
 import torch
 from PIL import Image
 #from model import Model
@@ -40,8 +39,6 @@ class ClientModel(nn.Module):
             nn.ReLU()
         )
         self.fc1 = nn.Linear(32*7*7, self.num_classes)
-        #self.fc2 = nn.Linear(1024, self.num_classes) #4 filters => 4 feature maps
-        # nn.Linear equivalent to tf.layers.dense()
         self.size = self.model_size()
 
     def forward(self, x):

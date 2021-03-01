@@ -56,11 +56,12 @@ MODEL_PARAMS = {
     'femnist.cnn': (0.0003, 62), # lr, num_classes
     'shakespeare.stacked_lstm': (0.0003, 80, 80, 256), # lr, seq_len, num_classes, num_hidden
     'celeba.cnn': (0.1, 2), # lr, num_classes
+    'celeba.mobilenet': (0.1, 2),
     'synthetic.log_reg': (0.0003, 5, 60), # lr, num_classes, input_dim
     'reddit.stacked_lstm': (0.0003, 10, 256, 2), # lr, seq_len, num_hidden, num_layers
     'cifar10.cnn': (0.01, 10),
     'cifar100.cnn': (0.01, 100),
-    'glv2.cnn': (0.01, 2028)
+    'glv2.mobilenet': (0.01, 2028)
 }
 """dict: Model specific parameter specification"""
 

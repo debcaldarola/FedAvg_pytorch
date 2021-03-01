@@ -14,7 +14,7 @@ GLV2 = False
 class Client:
     
     def __init__(self, seed, client_id, lr, group=None, train_data={'x' : [],'y' : []}, eval_data={'x' : [],'y' : []},
-                 model=None, device=None):
+                 model=None, device=None, mobilenet=False):
         self._model = model
         self.id = client_id
         self.group = group
@@ -23,6 +23,7 @@ class Client:
         self.seed = seed
         self.device = device
         self.lr = lr
+        self.mobilenet = mobilenet
 
     def train(self, num_epochs=1, batch_size=10, minibatch=None):
         """Trains on self.model using the client's train_data.
