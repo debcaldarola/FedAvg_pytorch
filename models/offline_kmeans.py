@@ -13,7 +13,7 @@ from offline_test import setup_dataset, test_net
 from sklearn.decomposition import PCA
 
 DO_PCA = True
-N_LAYERS = 2
+N_LAYERS = 3
 
 def main():
     args = parse_args()
@@ -40,6 +40,7 @@ def main():
     # Load model trained offline
     load_path = os.path.join('checkpoints', args.dataset, '{}.ckpt'.format('offline_'+args.model))
     client_model.load_state_dict(torch.load(load_path))
+    client_model = client_model.to(device)
 
     print("--- Testing general model ---")
     _, test = setup_dataset(args.dataset)
@@ -48,6 +49,7 @@ def main():
 
     if N_LAYERS > 0:
         client_model = freeze_layers(n_layers=N_LAYERS, model=client_model)
+        client_model = client_model.to(device)
         frozen_loss, frozen_acc = test_net(client_model, test, device, args.batch_size, args.seed)
         print("Test accuracy and loss of general model (frozen):", frozen_acc, frozen_loss)
 
@@ -76,8 +78,7 @@ def main():
             print("Trained {:d}/{:d} clients".format(i, len(clients)))
         num_samples, update = c.train(args.num_epochs, args.batch_size, None)   # update is a state_dict
         c_params = client_params(c.model.state_dict())
-        # c_loss, c_acc = test_net(client_model, test, device, args.batch_size, args.seed)
-        c_acc = 0
+        c_loss, c_acc = test_net(client_model, test, device, args.batch_size, args.seed)
         acc += c_acc
         if c_acc > general_acc:
             # print("Client {:d} reaches an accuracy of {:.2f}%.".format(i, c_acc))
@@ -91,7 +92,7 @@ def main():
     clients_models = torch.stack(model_params).cpu().detach().numpy()   # dim [9343, 32294]
 
     print("Highest accuracy reached on whole test set: {:.2f} (starting from {:.2f})".format(max_acc, general_acc))
-    save_path = os.path.join('checkpoints', args.dataset, 'best_client_model')
+    save_path = os.path.join('checkpoints', args.dataset, 'best_client_model_0')
     torch.save(best_model, save_path)
 
     if DO_PCA:
@@ -126,7 +127,6 @@ def main():
         filename = args.dataset + '_kmeansfrozen' + str(N_LAYERS) + '_' + str(args.num_clusters) + '.json'
     with open(filename, "w") as write_file:
         json.dump(clients_assignments, write_file)
-
 
 def parse_args():
     parser = argparse.ArgumentParser()
