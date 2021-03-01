@@ -1,14 +1,19 @@
 import importlib
 import os
-os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-os.environ['CUDA_VISIBLE_DEVICES'] = "0,1,2,3"
+# os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
+# os.environ['CUDA_VISIBLE_DEVICES'] = "0,1,2,3"
 import argparse
 import numpy as np
 import json
 import torch
-from baseline_constants import MODEL_PARAMS
+from baseline_constants import MODEL_PARAMS, ACCURACY_KEY
 from main import setup_clients
 from sklearn.cluster import KMeans
+from offline_test import setup_dataset, test_net
+from sklearn.decomposition import PCA
+
+DO_PCA = True
+N_LAYERS = 2
 
 def main():
     args = parse_args()
@@ -35,6 +40,17 @@ def main():
     # Load model trained offline
     load_path = os.path.join('checkpoints', args.dataset, '{}.ckpt'.format('offline_'+args.model))
     client_model.load_state_dict(torch.load(load_path))
+
+    print("--- Testing general model ---")
+    _, test = setup_dataset(args.dataset)
+    general_loss, general_acc = test_net(client_model, test, device, args.batch_size, args.seed)
+    print("Test accuracy and loss of general model:", general_acc, general_loss)
+
+    if N_LAYERS > 0:
+        client_model = freeze_layers(n_layers=N_LAYERS, model=client_model)
+        frozen_loss, frozen_acc = test_net(client_model, test, device, args.batch_size, args.seed)
+        print("Test accuracy and loss of general model (frozen):", frozen_acc, frozen_loss)
+
     # Create clients
     clients, test_clients = setup_clients(args.dataset, client_model, args.use_val_set, args.seed, device,
                                                 args.lr)
@@ -46,19 +62,45 @@ def main():
         print("Different train and test clients")
         clients.extend(test_clients)
 
+    max_acc = general_acc
+    best_model = ClientModel(*model_params, device).to(device)
+    best_model.load_state_dict(client_model.state_dict())
+
     # Fine tune clients models on their local data
     model_params = []
     clients_weight = np.zeros(len(clients))
+    acc = 0
     print("--- Starting Training ---")
     for i, c in enumerate(clients):
         if i%1000 == 0:
             print("Trained {:d}/{:d} clients".format(i, len(clients)))
         num_samples, update = c.train(args.num_epochs, args.batch_size, None)   # update is a state_dict
         c_params = client_params(c.model.state_dict())
+        # c_loss, c_acc = test_net(client_model, test, device, args.batch_size, args.seed)
+        c_acc = 0
+        acc += c_acc
+        if c_acc > general_acc:
+            # print("Client {:d} reaches an accuracy of {:.2f}%.".format(i, c_acc))
+            if c_acc > max_acc:
+                max_acc = c_acc
+                best_model.load_state_dict(c.model.state_dict())
         model_params.append(torch.cat(c_params, dim=0))
         clients_weight[i] = num_samples
 
-    clients_models = torch.stack(model_params).cpu().detach().numpy()
+    print("Average accuracy: {:.2}".format(acc/len(clients)))
+    clients_models = torch.stack(model_params).cpu().detach().numpy()   # dim [9343, 32294]
+
+    print("Highest accuracy reached on whole test set: {:.2f} (starting from {:.2f})".format(max_acc, general_acc))
+    save_path = os.path.join('checkpoints', args.dataset, 'best_client_model')
+    torch.save(best_model, save_path)
+
+    if DO_PCA:
+        print("--- Performing PCA on clients models parameters ---")
+        pca = PCA(0.95).fit(clients_models)
+        n_components = pca.n_components_
+        print("Number of components for 95% variance explained:", n_components)
+        pca = PCA(n_components=n_components, random_state=0)
+        clients_models = pca.fit_transform(clients_models)  # [n_clients, n_components]
 
     # Cluster clients according to models params
     print("--- Clustering clients ---")
@@ -75,11 +117,13 @@ def main():
             clients_assignments[l] = []
         clients_assignments[l].append(c.id)
 
-    print("Clusters info:")
     for i in range(args.num_clusters):
         print("Cluster {:d}: {:d} clients".format(i, len(clients_assignments[i])))
 
-    filename = args.dataset + '_kmeans_' + str(args.num_clusters) + '.json'
+    if DO_PCA:
+        filename = args.dataset + '_kmeanspcafrozen' + str(N_LAYERS) + '_' + str(args.num_clusters) + '.json'
+    else:
+        filename = args.dataset + '_kmeansfrozen' + str(N_LAYERS) + '_' + str(args.num_clusters) + '.json'
     with open(filename, "w") as write_file:
         json.dump(clients_assignments, write_file)
 
@@ -129,6 +173,15 @@ def client_params(c_model):
     for p in c_model.values():
         all_params.append(p.view(-1))
     return all_params
+
+def freeze_layers(n_layers, model):
+    for name, param in model.named_parameters():
+        n_layer = int(name[5])
+        if n_layer > n_layers:
+            print("Frozen all layers until layer", n_layer)
+            break
+        param.requires_grad = False
+    return model
 
 if __name__ == '__main__':
     main()
