@@ -13,7 +13,7 @@ from offline_test import setup_dataset, test_net
 from sklearn.decomposition import PCA
 
 DO_PCA = True
-N_LAYERS = 3
+N_LAYERS = 0
 
 def main():
     args = parse_args()
@@ -92,7 +92,7 @@ def main():
     clients_models = torch.stack(model_params).cpu().detach().numpy()   # dim [9343, 32294]
 
     print("Highest accuracy reached on whole test set: {:.2f} (starting from {:.2f})".format(max_acc, general_acc))
-    save_path = os.path.join('checkpoints', args.dataset, 'best_client_model_0')
+    save_path = os.path.join('checkpoints', args.dataset, 'best_client_model_'+str(N_LAYERS))
     torch.save(best_model, save_path)
 
     if DO_PCA:
