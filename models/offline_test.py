@@ -97,8 +97,12 @@ def train_net(model, train, num_epochs, optimizer, criterion, batch_size, seed, 
         running_loss = 0.0
         i = 0
         for batched_x, batched_y in batch_data(train, batch_size, seed=seed):
-            input_data = model.process_x(batched_x)
-            target_data = model.process_y(batched_y)
+            if isinstance(model, nn.DataParallel):
+                input_data = model.module.process_x(batched_x)
+                target_data = model.module.process_y(batched_y)
+            else:
+                input_data = model.process_x(batched_x)
+                target_data = model.process_y(batched_y)
             input_data_tensor = torch.from_numpy(input_data).permute(0, 3, 1, 2).to(device)
             target_data_tensor = torch.LongTensor(target_data).to(device)
             optimizer.zero_grad()
@@ -123,9 +127,13 @@ def test_net(model, test, device, batch_size, seed):
     test_loss = 0
     total = 0
     for batched_x, batched_y in batch_data(test, batch_size, seed=seed):
-        input = model.process_x(batched_x)
-        labels = model.process_y(batched_y)
-        input_tensor = torch.from_numpy(input).permute(0, 3, 1, 2).to(device)
+        if isinstance(model, nn.DataParallel):
+            input_data = model.module.process_x(batched_x)
+            labels = model.module.process_y(batched_y)
+        else:
+            input_data = model.process_x(batched_x)
+            labels = model.process_y(batched_y)
+        input_tensor = torch.from_numpy(input_data).permute(0, 3, 1, 2).to(device)
         labels_tensor = torch.LongTensor(labels).to(device)
         with torch.no_grad():
             outputs = model(input_tensor)
