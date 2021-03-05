@@ -29,6 +29,7 @@ def parse_file_information(file_path, train=True):
                 dictionary["users"].append(user_id)
             if user_id not in user_data:
                 user_data[user_id] = {'x': [], 'y': []}
+                # user_data[user_id] = {'x': [], 'y': [], 'domain': []}
             user_data[user_id]['x'].append(image_id)
             user_data[user_id]['y'].append(class_id)
 #            user_data[user_id]['domain'].append(domain)

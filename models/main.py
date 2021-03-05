@@ -70,8 +70,8 @@ def main():
     print('--- Random Initialization ---')
     stat_writer_fn = get_stat_writer_function(test_client_ids, test_client_groups, test_client_num_samples, args)
     sys_writer_fn = get_sys_writer_function(args)
-    # print_stats(0, server, train_clients, train_client_num_samples, test_clients, test_client_num_samples, args,
-    #             stat_writer_fn, args.use_val_set)
+    print_stats(0, server, train_clients, train_client_num_samples, test_clients, test_client_num_samples, args,
+                stat_writer_fn, args.use_val_set)
 
     # Simulate training
     for i in range(num_rounds):
