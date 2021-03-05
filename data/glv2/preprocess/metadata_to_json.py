@@ -24,14 +24,14 @@ def parse_file_information(file_path, train=True):
                 n_users += 1
             image_id = line['image_id']
             class_id = int(line['class'])
-            domain = int(line['domain'])
+            # domain = int(line['domain'])
             if user_id not in dictionary["users"]:
                 dictionary["users"].append(user_id)
             if user_id not in user_data:
-                user_data[user_id] = {'x': [], 'y': [], 'domain': []}
+                user_data[user_id] = {'x': [], 'y': []}
             user_data[user_id]['x'].append(image_id)
             user_data[user_id]['y'].append(class_id)
-            user_data[user_id]['domain'].append(domain)
+#            user_data[user_id]['domain'].append(domain)
 
     for user in dictionary["users"]:
         dictionary["user_data"][user] = user_data[user]
@@ -41,9 +41,9 @@ def parse_file_information(file_path, train=True):
 
 def parse_file(csv_path, dir_path, train=True):
     if train:
-        file = 'federated_train_final_v3.csv'
+        file = 'federated_train.csv'
     else:
-        file = 'test_final_v2.csv'
+        file = 'test.csv'
 
     file_path = os.path.join(csv_path, file)
     dictionary = parse_file_information(file_path, train)

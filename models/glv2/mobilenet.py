@@ -5,7 +5,8 @@ import torch.nn as nn
 from PIL import Image
 from torchvision import transforms
 
-IMAGES_DIR = os.path.join('..', 'data', 'glv2', 'data', 'raw', 'train')
+# IMAGES_DIR = os.path.join('..', 'data', 'glv2', 'data', 'raw', 'train')
+IMAGES_DIR = os.path.join('/', 'work', 'gberton', 'shared', 'datasets', 'glv2', 'train')
 IMAGE_SIZE = 224
 
 class ClientModel(nn.Module):
@@ -14,7 +15,7 @@ class ClientModel(nn.Module):
         self.device = device
         self.num_classes = num_classes
         model = torch.hub.load('pytorch/vision:v0.6.0', 'mobilenet_v2', pretrained=True)
-        model.classifier[1] = nn.Linear(in_features=1280, out_features=num_classes, bias=True)
+        model.classifier[1] = nn.Linear(in_features=62720, out_features=num_classes, bias=True)
         self.features = nn.Sequential(*list(model.children())[:-1])
         self.classifier = nn.Sequential(*list(model.children())[-1])
         state_dict = dict(zip(self.state_dict().keys(), model.state_dict().values()))
