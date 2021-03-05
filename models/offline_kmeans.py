@@ -6,6 +6,7 @@ import argparse
 import numpy as np
 import json
 import torch
+import torch.nn as nn
 from baseline_constants import MODEL_PARAMS, ACCURACY_KEY
 from main import setup_clients
 from sklearn.cluster import KMeans
@@ -40,6 +41,8 @@ def main():
     # Load model trained offline
     load_path = os.path.join('checkpoints', args.dataset, '{}.ckpt'.format('offline_'+args.model))
     client_model.load_state_dict(torch.load(load_path))
+    if args.dataset == 'femnist':
+        client_model = nn.DataParallel(client_model)
     client_model = client_model.to(device)
 
     print("--- Testing general model ---")
