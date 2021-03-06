@@ -9,7 +9,7 @@ import torch.nn.functional as F
 from utils.model_utils import batch_data
 from baseline_constants import ACCURACY_KEY
 
-GLV2 = True
+GLV2 = False
 
 class Client:
     

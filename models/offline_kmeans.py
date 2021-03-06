@@ -42,7 +42,6 @@ def main():
     load_path = os.path.join('checkpoints', args.dataset, '{}.ckpt'.format('offline_'+args.model))
     client_model.load_state_dict(torch.load(load_path))
     if args.dataset == 'femnist':
-        print("DataParallel for femnist")
         client_model = nn.DataParallel(client_model)
     client_model = client_model.to(device)
 
@@ -91,6 +90,7 @@ def main():
                 max_acc = c_acc
                 # best_model.load_state_dict(c.model.state_dict())
         model_params.append(torch.cat(c_params, dim=0))
+        c.model = c.model.cpu()
         clients_weight[i] = num_samples
 
     # print("Average accuracy: {:.2}".format(acc/len(clients)))
