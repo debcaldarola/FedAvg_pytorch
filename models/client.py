@@ -78,10 +78,7 @@ class Client:
             else:
                 input_data = self.model.process_x(batched_x)
                 target_data = self.model.process_y(batched_y)
-            if GLV2:
-                input_data_tensor = torch.from_numpy(input_data).type(torch.FloatTensor).to(self.device)
-            else:
-                input_data_tensor = torch.from_numpy(input_data).type(torch.FloatTensor).permute(0, 3, 1, 2).to(self.device)
+            input_data_tensor = torch.from_numpy(input_data).type(torch.FloatTensor).permute(0, 3, 1, 2).to(self.device)
             target_data_tensor = torch.LongTensor(target_data).to(self.device)
             optimizer.zero_grad()
             outputs = self.model(input_data_tensor)
@@ -121,10 +118,8 @@ class Client:
             else:
                 input = self.model.process_x(batched_x)
                 labels = self.model.process_y(batched_y)
-            if GLV2:
-                input_tensor = torch.from_numpy(input).type(torch.FloatTensor).to(self.device)
-            else:
-                input_tensor = torch.from_numpy(input).type(torch.FloatTensor).permute(0, 3, 1, 2).to(self.device)
+
+            input_tensor = torch.from_numpy(input).type(torch.FloatTensor).permute(0, 3, 1, 2).to(self.device)
             labels_tensor = torch.LongTensor(labels).to(self.device)
 
             with torch.no_grad():

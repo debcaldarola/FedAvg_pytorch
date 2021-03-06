@@ -42,6 +42,7 @@ def main():
     load_path = os.path.join('checkpoints', args.dataset, '{}.ckpt'.format('offline_'+args.model))
     client_model.load_state_dict(torch.load(load_path))
     if args.dataset == 'femnist':
+        print("DataParallel for femnist")
         client_model = nn.DataParallel(client_model)
     client_model = client_model.to(device)
 
@@ -68,8 +69,8 @@ def main():
         clients.extend(test_clients)
 
     max_acc = general_acc
-    best_model = ClientModel(*model_params, device).to(device)
-    best_model.load_state_dict(client_model.state_dict())
+    # best_model = ClientModel(*model_params, device).to(device)
+    # best_model.load_state_dict(client_model.state_dict())
 
     # Fine tune clients models on their local data
     model_params = []
@@ -81,22 +82,23 @@ def main():
             print("Trained {:d}/{:d} clients".format(i, len(clients)))
         num_samples, update = c.train(args.num_epochs, args.batch_size, None)   # update is a state_dict
         c_params = client_params(c.model.state_dict())
-        c_loss, c_acc = test_net(client_model, test, device, args.batch_size, args.seed)
+        # c_loss, c_acc = test_net(client_model, test, device, args.batch_size, args.seed)
+        c_acc = 0
         acc += c_acc
         if c_acc > general_acc:
             # print("Client {:d} reaches an accuracy of {:.2f}%.".format(i, c_acc))
             if c_acc > max_acc:
                 max_acc = c_acc
-                best_model.load_state_dict(c.model.state_dict())
+                # best_model.load_state_dict(c.model.state_dict())
         model_params.append(torch.cat(c_params, dim=0))
         clients_weight[i] = num_samples
 
-    print("Average accuracy: {:.2}".format(acc/len(clients)))
+    # print("Average accuracy: {:.2}".format(acc/len(clients)))
     clients_models = torch.stack(model_params).cpu().detach().numpy()   # dim [9343, 32294]
 
-    print("Highest accuracy reached on whole test set: {:.2f} (starting from {:.2f})".format(max_acc, general_acc))
-    save_path = os.path.join('checkpoints', args.dataset, 'best_client_model_'+str(N_LAYERS))
-    torch.save(best_model, save_path)
+    # print("Highest accuracy reached on whole test set: {:.2f} (starting from {:.2f})".format(max_acc, general_acc))
+    # save_path = os.path.join('checkpoints', args.dataset, 'best_client_model_'+str(N_LAYERS))
+    # torch.save(best_model, save_path)
 
     if DO_PCA:
         print("--- Performing PCA on clients models parameters ---")

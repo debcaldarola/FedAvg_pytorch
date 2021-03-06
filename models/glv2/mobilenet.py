@@ -17,6 +17,7 @@ class ClientModel(nn.Module):
         model = torch.hub.load('pytorch/vision:v0.6.0', 'mobilenet_v2', pretrained=True)
         model.classifier[1] = nn.Linear(in_features=62720, out_features=num_classes, bias=True)
         self.features = nn.Sequential(*list(model.children())[:-1])
+        self.avgpool = torch.nn.AdaptiveAvgPool2d((1, 1))
         self.classifier = nn.Sequential(*list(model.children())[-1])
         state_dict = dict(zip(self.state_dict().keys(), model.state_dict().values()))
         self.load_state_dict(state_dict)
@@ -24,6 +25,7 @@ class ClientModel(nn.Module):
 
     def forward(self, x):
         x = self.features(x)
+        x = self.avgpool(x)
         x = x.reshape(x.shape[0], -1)
         x = self.classifier(x)
         return x
@@ -31,6 +33,7 @@ class ClientModel(nn.Module):
     def process_x(self, x_list):
         x_batch = [self._load_image(i) for i in x_list]
         x_batch = np.array(x_batch)
+        x_batch = np.reshape(x_batch, (x_batch.shape[0], IMAGE_SIZE, IMAGE_SIZE, 3))
         return x_batch
 
     def _load_image(self, img_name):
