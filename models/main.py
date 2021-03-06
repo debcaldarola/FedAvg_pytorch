@@ -74,6 +74,9 @@ def main():
                 stat_writer_fn, args.use_val_set)
 
     # Simulate training
+    ckpt_path = os.path.join('checkpoints', args.dataset)
+    if not os.path.exists(ckpt_path):
+        os.makedirs(ckpt_path)
     for i in range(num_rounds):
         print('--- Round %d of %d: Training %d Clients ---' % (i + 1, num_rounds, clients_per_round))
 
@@ -94,11 +97,11 @@ def main():
             print_stats(i + 1, server, train_clients, train_client_num_samples, test_clients, test_client_num_samples,
                         args, stat_writer_fn, args.use_val_set)
 
+        save_path = server.save_model(os.path.join(ckpt_path, '{}.ckpt'.format(args.model + '_fedavg')))
+        print('Model saved in path: %s' % save_path)
+
     # Save server model
-    ckpt_path = os.path.join('checkpoints', args.dataset)
-    if not os.path.exists(ckpt_path):
-        os.makedirs(ckpt_path)
-    save_path = server.save_model(os.path.join(ckpt_path, '{}.ckpt'.format(args.model)))
+    save_path = server.save_model(os.path.join(ckpt_path, '{}.ckpt'.format(args.model + '_fedavg')))
     print('Model saved in path: %s' % save_path)
 
 
