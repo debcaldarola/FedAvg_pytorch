@@ -52,6 +52,9 @@ def parse_args():
     parser.add_argument('--device',
                         type=str,
                         default='cuda:0')
+    parser.add_argument('-load',
+                        type=bool,
+                        default=False)
 
     # Minibatch doesn't support num_epochs, so make them mutually exclusive
     epoch_capability_group = parser.add_mutually_exclusive_group()

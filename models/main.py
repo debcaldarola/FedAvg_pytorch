@@ -50,6 +50,10 @@ def main():
 
     # Create client model, and share params with server model
     client_model = ClientModel(*model_params, device)
+    if args.load:
+        print("--- Loading model from checkpoint ---")
+        load_path = os.path.join('.', 'checkpoints', args.dataset, '{}.ckpt'.format(args.model + '_fedavg'))
+        client_model = torch.load(load_path)
     if args.model == 'mobilenet':
         client_model = nn.DataParallel(client_model)
     client_model = client_model.to(device)
