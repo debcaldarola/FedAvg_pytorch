@@ -139,8 +139,8 @@ class Server:
     def save_model(self, path):
         """Saves the server model on checkpoints/dataset/model.ckpt."""
         # Save server model
-        self.client_model.load_state_dict(self.model)
-        torch.save(self.client_model, path)
+        # self.client_model.load_state_dict(self.model)
+        torch.save(self.model, path)
         return path
 
     def num_parameters(self, params):

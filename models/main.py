@@ -53,8 +53,9 @@ def main():
     if args.load:
         print("--- Loading model from checkpoint ---")
         load_path = os.path.join('.', 'checkpoints', args.dataset, '{}.ckpt'.format(args.model + '_fedavg'))
+        # client_model.load_state_dict(torch.load(load_path))
         client_model = torch.load(load_path)
-    elif args.model == 'mobilenet':
+    if args.model == 'mobilenet':
         client_model = nn.DataParallel(client_model)
     client_model = client_model.to(device)
     # Create server
@@ -72,10 +73,16 @@ def main():
 
     # Initial status
     print('--- Random Initialization ---')
+    res_path = os.path.join('results', args.dataset, args.model)
+    if not os.path.exists(res_path):
+        os.makedirs(res_path)
+    file = os.path.join(res_path, 'results.txt')
+    fp = open(file, "a")
+
     stat_writer_fn = get_stat_writer_function(test_client_ids, test_client_groups, test_client_num_samples, args)
     sys_writer_fn = get_sys_writer_function(args)
     print_stats(0, server, train_clients, train_client_num_samples, test_clients, test_client_num_samples, args,
-                stat_writer_fn, args.use_val_set)
+                stat_writer_fn, args.use_val_set, fp)
 
     # Simulate training
     ckpt_path = os.path.join('checkpoints', args.dataset)
@@ -83,6 +90,7 @@ def main():
         os.makedirs(ckpt_path)
     for i in range(num_rounds):
         print('--- Round %d of %d: Training %d Clients ---' % (i + 1, num_rounds, clients_per_round))
+        fp.write('--- Round %d of %d: Training %d Clients ---' % (i + 1, num_rounds, clients_per_round))
 
         # Select clients to train during this round
         server.select_clients(i, online(train_clients), num_clients=clients_per_round)
@@ -99,7 +107,7 @@ def main():
         # Test model
         if (i + 1) % eval_every == 0 or (i + 1) == num_rounds:
             print_stats(i + 1, server, train_clients, train_client_num_samples, test_clients, test_client_num_samples,
-                        args, stat_writer_fn, args.use_val_set)
+                        args, stat_writer_fn, args.use_val_set, fp)
 
         save_path = server.save_model(os.path.join(ckpt_path, '{}.ckpt'.format(args.model + '_fedavg')))
         print('Model saved in path: %s' % save_path)
@@ -107,6 +115,10 @@ def main():
     # Save server model
     save_path = server.save_model(os.path.join(ckpt_path, '{}.ckpt'.format(args.model + '_fedavg')))
     print('Model saved in path: %s' % save_path)
+
+    fp.close()
+    print("File saved in path: %s" % res_path)
+
 
 
 def online(clients):
@@ -158,18 +170,18 @@ def get_sys_writer_function(args):
 
 
 def print_stats(
-        num_round, server, train_clients, train_num_samples, test_clients, test_num_samples, args, writer, use_val_set):
+        num_round, server, train_clients, train_num_samples, test_clients, test_num_samples, args, writer, use_val_set, fp):
     train_stat_metrics = server.test_model(train_clients, args.batch_size, set_to_use='train')
-    print_metrics(train_stat_metrics, train_num_samples, prefix='train_')
+    print_metrics(train_stat_metrics, train_num_samples, fp, prefix='train_')
     writer(num_round, train_stat_metrics, 'train')
 
     eval_set = 'test' if not use_val_set else 'val'
     test_stat_metrics = server.test_model(test_clients, args.batch_size, set_to_use=eval_set)
-    print_metrics(test_stat_metrics, test_num_samples, prefix='{}_'.format(eval_set))
+    print_metrics(test_stat_metrics, test_num_samples, fp, prefix='{}_'.format(eval_set))
     writer(num_round, test_stat_metrics, eval_set)
 
 
-def print_metrics(metrics, weights, prefix=''):
+def print_metrics(metrics, weights, fp, prefix=''):
     """Prints weighted averages of the given metrics.
 
     Args:
@@ -184,6 +196,12 @@ def print_metrics(metrics, weights, prefix=''):
     for metric in metric_names:
         ordered_metric = [metrics[c][metric] for c in sorted(metrics)]
         print('%s: %g, 10th percentile: %g, 50th percentile: %g, 90th percentile %g' \
+              % (prefix + metric,
+                 np.average(ordered_metric, weights=ordered_weights),
+                 np.percentile(ordered_metric, 10),
+                 np.percentile(ordered_metric, 50),
+                 np.percentile(ordered_metric, 90)))
+        fp.write('%s: %g, 10th percentile: %g, 50th percentile: %g, 90th percentile %g\n' \
               % (prefix + metric,
                  np.average(ordered_metric, weights=ordered_weights),
                  np.percentile(ordered_metric, 10),
