@@ -54,7 +54,7 @@ def main():
         print("--- Loading model from checkpoint ---")
         load_path = os.path.join('.', 'checkpoints', args.dataset, '{}.ckpt'.format(args.model + '_fedavg'))
         client_model = torch.load(load_path)
-    if args.model == 'mobilenet':
+    elif args.model == 'mobilenet':
         client_model = nn.DataParallel(client_model)
     client_model = client_model.to(device)
     # Create server
