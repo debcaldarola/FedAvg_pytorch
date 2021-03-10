@@ -78,6 +78,8 @@ class Client:
             else:
                 input_data = self.model.process_x(batched_x)
                 target_data = self.model.process_y(batched_y)
+            if input_data is None:
+                continue
             input_data_tensor = torch.from_numpy(input_data).type(torch.FloatTensor).permute(0, 3, 1, 2).to(self.device)
             target_data_tensor = torch.LongTensor(target_data).to(self.device)
             optimizer.zero_grad()
@@ -118,7 +120,8 @@ class Client:
             else:
                 input = self.model.process_x(batched_x)
                 labels = self.model.process_y(batched_y)
-
+            if input is None:
+                continue
             input_tensor = torch.from_numpy(input).type(torch.FloatTensor).permute(0, 3, 1, 2).to(self.device)
             labels_tensor = torch.LongTensor(labels).to(self.device)
 

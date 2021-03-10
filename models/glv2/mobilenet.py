@@ -33,7 +33,16 @@ class ClientModel(nn.Module):
         return x
 
     def process_x(self, x_list):
-        x_batch = [self._load_image(i) for i in x_list]
+        x_batch = []
+        for i in x_list:
+            x = self._load_image(i)
+            if x is None:
+                continue
+            x_batch.append(x)
+        # x_batch = [self._load_image(i) for i in x_list]
+        if len(x_batch) == 0:
+            print("No images")
+            return None
         x_batch = np.array(x_batch)
         x_batch = np.reshape(x_batch, (x_batch.shape[0], IMAGE_SIZE, IMAGE_SIZE, 3))
         return x_batch
@@ -42,17 +51,20 @@ class ClientModel(nn.Module):
         path = os.path.join(IMAGES_DIR, img_name[0], img_name[1], img_name[2])
         if not os.path.exists(path):
             print("not existing path:", path)
-            return np.random.rand(3,224,224)
+            # return np.random.rand(3,224,224)
+            return None
         img_name = img_name + ".jpg"
         img_path = os.path.join(path, img_name)
         if not os.path.exists(img_path):
-            print("not existing img:", img_name)
-            return np.random.rand(3,224,224)
+            # print("not existing img:", img_name)
+            # return np.random.rand(3,224,224)
+            return None
         try:
             img = Image.open(img_path)
         except PIL.UnidentifiedImageError:
-            print("Corrupted image:",img_path)
-            return np.random.rand(3, 224, 224)
+            # print("Corrupted image:",img_path)
+            # return np.random.rand(3, 224, 224)
+            return None
         preprocess = transforms.Compose([
             transforms.Resize(IMAGE_SIZE),
             transforms.CenterCrop(224),
