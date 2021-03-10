@@ -2,11 +2,13 @@ import os
 import numpy as np
 import torch
 import torch.nn as nn
+import PIL
 from PIL import Image
 from torchvision import transforms
 
 # IMAGES_DIR = os.path.join('..', 'data', 'glv2', 'data', 'raw', 'train')
-IMAGES_DIR = os.path.join('/', 'work', 'gberton', 'shared', 'datasets', 'glv2', 'train')
+# IMAGES_DIR = os.path.join('/', 'work', 'gberton', 'shared', 'datasets', 'glv2', 'train')
+IMAGES_DIR = os.path.join('/', 'home', 'valerio', 'datasets', 'classification_datasets', 'glv2', 'train')
 IMAGE_SIZE = 224
 
 class ClientModel(nn.Module):
@@ -38,8 +40,19 @@ class ClientModel(nn.Module):
 
     def _load_image(self, img_name):
         path = os.path.join(IMAGES_DIR, img_name[0], img_name[1], img_name[2])
+        if not os.path.exists(path):
+            print("not existing path:", path)
+            return np.random.rand(3,224,224)
         img_name = img_name + ".jpg"
-        img = Image.open(os.path.join(path, img_name))
+        img_path = os.path.join(path, img_name)
+        if not os.path.exists(img_path):
+            print("not existing img:", img_name)
+            return np.random.rand(3,224,224)
+        try:
+            img = Image.open(img_path)
+        except PIL.UnidentifiedImageError:
+            print("Corrupted image:",img_path)
+            return np.random.rand(3, 224, 224)
         preprocess = transforms.Compose([
             transforms.Resize(IMAGE_SIZE),
             transforms.CenterCrop(224),

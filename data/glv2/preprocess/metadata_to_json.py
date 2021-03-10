@@ -4,6 +4,7 @@ from csv import DictReader
 import json
 
 ONE_TRAIN_FILE = True
+IMGS_PER_TEST_USER = 30
 
 def save_as_json_file(filename, data):
     with open(filename, 'w+') as fp:
@@ -13,6 +14,7 @@ def parse_file_information(file_path, train=True):
     dictionary = {"users": [], "num_samples": [], "user_data": {}}
     user_data = {}
     n_users = 1262
+    assigned = 0
     with open(file_path, 'r') as file:
         reader = DictReader(file)
         next(reader)  # skip header
@@ -21,7 +23,10 @@ def parse_file_information(file_path, train=True):
                 user_id = int(line['user_id'])
             else:
                 user_id = n_users
-                n_users += 1
+                assigned += 1
+                if assigned == IMGS_PER_TEST_USER:
+                    n_users += 1
+                    assigned = 0
             image_id = line['image_id']
             class_id = int(line['class'])
             # domain = int(line['domain'])

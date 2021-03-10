@@ -77,7 +77,7 @@ def main():
     if not os.path.exists(res_path):
         os.makedirs(res_path)
     file = os.path.join(res_path, 'results.txt')
-    fp = open(file, "a")
+    fp = open(file, "w")
 
     stat_writer_fn = get_stat_writer_function(test_client_ids, test_client_groups, test_client_num_samples, args)
     sys_writer_fn = get_sys_writer_function(args)
@@ -90,7 +90,7 @@ def main():
         os.makedirs(ckpt_path)
     for i in range(num_rounds):
         print('--- Round %d of %d: Training %d Clients ---' % (i + 1, num_rounds, clients_per_round))
-        fp.write('--- Round %d of %d: Training %d Clients ---' % (i + 1, num_rounds, clients_per_round))
+        fp.write('--- Round %d of %d: Training %d Clients ---\n' % (i + 1, num_rounds, clients_per_round))
 
         # Select clients to train during this round
         server.select_clients(i, online(train_clients), num_clients=clients_per_round)
