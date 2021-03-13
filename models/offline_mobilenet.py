@@ -93,6 +93,8 @@ def train(model, train_dataset, labels, **kwargs):
     batch_size = kwargs['batch_size']
     device = kwargs['device']
 
+    fp = open("offline_mobilenet.txt", "w")
+
     print("Training with {:d} epochs and batch size {:d}".format(n_epochs, batch_size))
     losses = []
     eval_accuracies = []
@@ -113,12 +115,15 @@ def train(model, train_dataset, labels, **kwargs):
             optimizer.step()
             i += 1
         print(f'\t train_loss: {train_loss/i:.2f}')
+        fp.write("Epoch {:d} train loss {:.2f}\n".format(epoch, train_loss/i))
         losses.append(train_loss/i)
         model.eval()
         eval_accuracy, eval_loss = test(model, train_dataset, labels, batch_size=batch_size, device=device)
         print("\tEval accuracy: {:.2f}. Eval loss: {:.2f}".format(eval_accuracy, eval_loss))
+        fp.write("Eval accuracy: {:.2f}. Eval loss: {:.2f}\n".format(eval_accuracy, eval_loss))
         eval_accuracies.append(eval_accuracy)
         model.train()
+    fp.close()
     fig_name = 'train_loss_' + str(n_epochs) + 'epochs'
     plot_score(losses, n_epochs, 'Train loss', 'Train Loss', fig_name)
     fig_name = 'eval_accuracy_' + str(n_epochs) + 'epochs'
@@ -200,6 +205,10 @@ def main():
     model.eval()
     accuracy, loss = test(model, test_data, test_labels, batch_size=batch_size, device=device)
     print("Test accuracy: {:.2f}. Test loss: {:.2f}".format(accuracy, loss))
+    fp = open("offline_mobilenet", "a")
+    fp.write("Test accuracy: {:.2f}. Test loss: {:.2f}\n".format(accuracy, loss))
+    fp.close()
+
 
 if __name__ == '__main__':
     main()
