@@ -13,10 +13,10 @@ from PIL import Image
 import matplotlib.pyplot as plt
 from torchvision import transforms
 
-IMAGES_DIR = os.path.join('.', 'data', 'raw', 'train')
-IMAGES_DIR_TEST = os.path.join('.', 'data', 'raw', 'test')
-TRAIN_FILE_DIR = os.path.join('.', 'landmarks-user-160k')
-TEST_FILE_DIR = os.path.join('.', 'landmarks-user-160k')
+IMAGES_DIR = os.path.join('..', 'data', 'glv2', 'data', 'raw', 'train')
+IMAGES_DIR_TEST = os.path.join('..', 'data', 'glv2', 'data', 'raw', 'test')
+TRAIN_FILE_DIR = os.path.join('..', 'data', 'glv2', 'landmarks-user-160k')
+TEST_FILE_DIR = os.path.join('..', 'data', 'glv2', 'landmarks-user-160k')
 IMAGE_SIZE = 224
 
 def parse_args():
@@ -158,9 +158,7 @@ def main():
 
     print("Classification on {:d} classes".format(n_classes))
 
-    model_path = os.path.join('..', '..', 'models', 'glv2', 'mobilenet.py')
-
-    print('############################## %s ##############################' % model_path)
+    model_path = '%s.%s' % ('glv2', 'mobilenet')
     mod = importlib.import_module(model_path)
     ClientModel = getattr(mod, 'ClientModel')
     model = ClientModel(0.01, n_classes, device).to(device)
