@@ -24,6 +24,12 @@ class Client:
         self.device = device
         self.lr = lr
         self.mobilenet = mobilenet
+        if mobilenet:
+            self.weight_decay = 4*10**(-5)
+            self.momentum = 0.9
+        else:
+            self.weight_decay = 0
+            self.momentum = 0
 
     def train(self, num_epochs=1, batch_size=10, minibatch=None):
         """Trains on self.model using the client's train_data.
@@ -54,7 +60,7 @@ class Client:
 
         # train model
         criterion = nn.CrossEntropyLoss().to(self.device)  # it already does softmax computation
-        optimizer = optim.SGD(self.model.parameters(), lr=self.lr)
+        optimizer = optim.SGD(self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay, momentum=self.momentum)
         losses = np.empty(num_epochs)
         j = 0
         for epoch in range(num_epochs):
@@ -132,6 +138,7 @@ class Client:
                 total += labels_tensor.size(0)
                 correct += (predicted == labels_tensor).sum().item()
         if total == 0:
+            print("TOTAL is 0")
             accuracy = 0
             test_loss = 0
         else:
