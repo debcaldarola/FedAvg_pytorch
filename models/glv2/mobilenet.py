@@ -52,19 +52,20 @@ class ClientModel(nn.Module):
         if not os.path.exists(path):
             print("not existing path:", path)
             # return np.random.rand(3,224,224)
-            return None
+            return np.zeros((3,224,224))
         img_name = img_name + ".jpg"
         img_path = os.path.join(path, img_name)
         if not os.path.exists(img_path):
             # print("not existing img:", img_name)
             # return np.random.rand(3,224,224)
-            return None
+            return np.zeros((3,224,224))
         try:
             img = Image.open(img_path)
         except PIL.UnidentifiedImageError:
             # print("Corrupted image:",img_path)
             # return np.random.rand(3, 224, 224)
-            return None
+            # return None
+            return np.zeros((3,224,224))
         preprocess = transforms.Compose([
             transforms.Resize(IMAGE_SIZE),
             transforms.CenterCrop(224),
