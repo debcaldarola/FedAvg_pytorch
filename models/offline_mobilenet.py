@@ -120,6 +120,8 @@ def train(model, train_dataset, labels, **kwargs):
             # batched_x = process_x(train_dataset[k:k + batch_size])
             # batched_y = labels[k:k + batch_size]
             batched_x, batched_y = process_batch(train_dataset[k:k + batch_size], labels[k:k + batch_size])
+            if len(batched_x) == 0:
+                continue
             input_data_tensor = torch.from_numpy(batched_x).type(torch.FloatTensor).to(device)
             target_data_tensor = torch.LongTensor(batched_y).to(device)
             optimizer.zero_grad()
