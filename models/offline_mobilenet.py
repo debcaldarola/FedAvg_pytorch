@@ -43,20 +43,22 @@ def load_image(img_name):
     if not os.path.exists(path):
         # print("not existing path:", path)
         # return np.random.rand(3,224,224)
-        return np.zeros((3, 224, 224))
+        # return np.zeros((3, 224, 224))
+        return None
     img_name = img_name + ".jpg"
     img_path = os.path.join(path, img_name)
     if not os.path.exists(img_path):
         # print("not existing img:", img_name)
         # return np.random.rand(3,224,224)
-        return np.zeros((3, 224, 224))
+        #  return np.zeros((3, 224, 224))
+        return None
     try:
         img = Image.open(img_path)
     except PIL.UnidentifiedImageError:
         # print("Corrupted image:",img_path)
         # return np.random.rand(3, 224, 224)
-        # return None
-        return np.zeros((3, 224, 224))
+        return None
+        # return np.zeros((3, 224, 224))
 
     # img = Image.open(os.path.join(path, img_name))
     preprocess = transforms.Compose([
@@ -68,10 +70,20 @@ def load_image(img_name):
     input_tensor = preprocess(img)
     return input_tensor.cpu().detach().numpy()
 
-def process_x(x_list):
-    x_batch = [load_image(i) for i in x_list]
-    x_batch = np.array(x_batch)
-    return x_batch
+# def process_x(x_list):
+#     x_batch = [load_image(i) for i in x_list]
+#     x_batch = np.array(x_batch)
+#     return x_batch
+
+def process_batch(x_list, y_list):
+    x_batch = []
+    y_batch = []
+    for x, y in zip(x_list, y_list):
+        i = load_image(x)
+        if i is not None:
+            x_batch.append(i)
+            y_batch.append(y)
+    return x_batch, y_batch
 
 def plot_score(scores, n_epochs, title, ylabel, fig_name):
     epochs = range(n_epochs)
@@ -103,8 +115,9 @@ def train(model, train_dataset, labels, **kwargs):
         train_loss = 0
         i = 0
         for k in range(0, len(train_dataset), batch_size):
-            batched_x = process_x(train_dataset[k:k + batch_size])
-            batched_y = labels[k:k + batch_size]
+            # batched_x = process_x(train_dataset[k:k + batch_size])
+            # batched_y = labels[k:k + batch_size]
+            batched_x, batched_y = process_batch(train_dataset[k:k + batch_size], labels[k:k + batch_size])
             input_data_tensor = torch.from_numpy(batched_x).type(torch.FloatTensor).to(device)
             target_data_tensor = torch.LongTensor(batched_y).to(device)
             optimizer.zero_grad()
@@ -125,9 +138,9 @@ def train(model, train_dataset, labels, **kwargs):
         model.train()
     fp.close()
     fig_name = 'train_loss_' + str(n_epochs) + 'epochs'
-    plot_score(losses, n_epochs, 'Train loss', 'Train Loss', fig_name)
+    # plot_score(losses, n_epochs, 'Train loss', 'Train Loss', fig_name)
     fig_name = 'eval_accuracy_' + str(n_epochs) + 'epochs'
-    plot_score(eval_accuracies, n_epochs, 'Eval accuracy', 'Evaluation Accuracy', fig_name)
+    # plot_score(eval_accuracies, n_epochs, 'Eval accuracy', 'Evaluation Accuracy', fig_name)
 
 def test(model, data, labels, **kwargs):
     batch_size = kwargs['batch_size']
@@ -136,8 +149,9 @@ def test(model, data, labels, **kwargs):
     total = 0
     correct = 0
     for k in range(0, len(data), batch_size):
-        batched_x = process_x(data[k:k + batch_size])
-        batched_y = labels[k:k + batch_size]
+        # batched_x = process_x(data[k:k + batch_size])
+        # batched_y = labels[k:k + batch_size]
+        batched_x, batched_y = process_batch(data[k:k + batch_size], labels[k:k + batch_size])
         input_data_tensor = torch.from_numpy(batched_x).type(torch.FloatTensor).to(device)
         target_data_tensor = torch.LongTensor(batched_y).to(device)
         with torch.no_grad():
@@ -158,7 +172,7 @@ def main():
 
     n_classes = len(set(df['class'].tolist()))
     batch_size = 32
-    n_epochs = 20
+    n_epochs = 5
     device = torch.device(args.device if torch.cuda.is_available else 'cpu')
 
     print("Classification on {:d} classes".format(n_classes))
@@ -184,6 +198,7 @@ def main():
     data = list(zip(input_data, labels))
     random.shuffle(data)
     input_data, labels = zip(*data)
+    # print(input_data, labels)
     optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
     criterion = nn.CrossEntropyLoss().to(device)
     train(model=model, train_dataset=input_data, labels=labels, criterion=criterion,
@@ -205,7 +220,7 @@ def main():
     model.eval()
     accuracy, loss = test(model, test_data, test_labels, batch_size=batch_size, device=device)
     print("Test accuracy: {:.2f}. Test loss: {:.2f}".format(accuracy, loss))
-    fp = open("offline_mobilenet", "a")
+    fp = open("offline_mobilenet.txt", "a")
     fp.write("Test accuracy: {:.2f}. Test loss: {:.2f}\n".format(accuracy, loss))
     fp.close()
 
