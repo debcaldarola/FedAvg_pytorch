@@ -41,21 +41,21 @@ def load_image(img_name):
     path = os.path.join(IMAGES_DIR, img_name[0], img_name[1], img_name[2])
     # img_name = img_name + ".jpg"
     if not os.path.exists(path):
-        # print("not existing path:", path)
+        print("not existing path:", path)
         # return np.random.rand(3,224,224)
         # return np.zeros((3, 224, 224))
         return None
     img_name = img_name + ".jpg"
     img_path = os.path.join(path, img_name)
     if not os.path.exists(img_path):
-        # print("not existing img:", img_name)
+        print("not existing img:", img_name)
         # return np.random.rand(3,224,224)
         #  return np.zeros((3, 224, 224))
         return None
     try:
         img = Image.open(img_path)
     except PIL.UnidentifiedImageError:
-        # print("Corrupted image:",img_path)
+        print("Corrupted image:",img_path)
         # return np.random.rand(3, 224, 224)
         return None
         # return np.zeros((3, 224, 224))
@@ -83,7 +83,9 @@ def process_batch(x_list, y_list):
         if i is not None:
             x_batch.append(i)
             y_batch.append(y)
-    return x_batch, y_batch
+        else:
+            print("empty batch")
+    return np.array(x_batch), y_batch
 
 def plot_score(scores, n_epochs, title, ylabel, fig_name):
     epochs = range(n_epochs)
