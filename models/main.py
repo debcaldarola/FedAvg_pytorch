@@ -171,8 +171,11 @@ def get_sys_writer_function(args):
 
 def print_stats(
         num_round, server, train_clients, train_num_samples, test_clients, test_num_samples, args, writer, use_val_set, fp):
-    train_stat_metrics = server.test_model(train_clients, args.batch_size, set_to_use='train')
-    print_metrics(train_stat_metrics, train_num_samples, fp, prefix='train_')
+    # train_stat_metrics = server.test_model(train_clients, args.batch_size, set_to_use='train')
+    train_stat_metrics = server.test_model(None, args.batch_size, set_to_use='train')
+    # print_metrics(train_stat_metrics, train_num_samples, fp, prefix='train_')
+    _, _, num_samples = server.get_clients_info(None)
+    print_metrics(train_stat_metrics, num_samples, fp, prefix='train_')
     writer(num_round, train_stat_metrics, 'train')
 
     eval_set = 'test' if not use_val_set else 'val'
