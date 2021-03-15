@@ -41,7 +41,7 @@ function run_fedavg() {
 	num_epochs="$2"
 
 	pushd models/
-		python main.py -dataset 'femnist' -model 'cnn' --num-rounds ${num_rounds} --clients-per-round ${clients_per_round} --num-epochs ${num_epochs} -lr ${fedavg_lr} --device 'cuda:1'
+		python main.py -dataset 'femnist' -model 'cnn' --num-rounds ${num_rounds} --clients-per-round ${clients_per_round} --num-epochs ${num_epochs} -lr ${fedavg_lr} --device 'cuda' --batch-size 10
 	popd
 	move_data ${output_dir} "fedavg_c_${clients_per_round}_e_${num_epochs}"
 }

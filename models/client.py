@@ -26,10 +26,8 @@ class Client:
         self.mobilenet = mobilenet
         if mobilenet:
             self.weight_decay = 4*10**(-5)
-            self.momentum = 0.9
         else:
             self.weight_decay = 0
-            self.momentum = 0
 
     def train(self, num_epochs=1, batch_size=10, minibatch=None):
         """Trains on self.model using the client's train_data.
@@ -58,9 +56,11 @@ class Client:
             # Minibatch trains for only 1 epoch - multiple local epochs don't make sense!
             num_epochs = 1
 
+        # print(self.id, len(data['y']), data['y'])
+
         # train model
         criterion = nn.CrossEntropyLoss().to(self.device)  # it already does softmax computation
-        optimizer = optim.SGD(self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay, momentum=self.momentum)
+        optimizer = optim.SGD(self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay)
         losses = np.empty(num_epochs)
         j = 0
         for epoch in range(num_epochs):
@@ -79,8 +79,10 @@ class Client:
         i = 0
         for batched_x, batched_y in batch_data(data, batch_size, seed=self.seed):
             if isinstance(self.model, nn.DataParallel):
-                input_data = self.model.module.process_x(batched_x)
-                target_data = self.model.module.process_y(batched_y)
+                # input_data = self.model.module.process_x(batched_x)
+                # target_data = self.model.module.process_y(batched_y)
+                # NB DA MODIFICARE PER FEMNIST
+                input_data, target_data = self.model.module.process_batch(batched_x, batched_y)
             else:
                 input_data = self.model.process_x(batched_x)
                 target_data = self.model.process_y(batched_y)
@@ -112,8 +114,10 @@ class Client:
         assert set_to_use in ['train', 'test', 'val']
         if set_to_use == 'train':
             data = self.train_data
+            print(self.id, len(data['y']), data['y'])
         elif set_to_use == 'test' or set_to_use == 'val':
             data = self.eval_data
+
         self.model.eval()
         correct = 0
         total = 0
@@ -121,8 +125,9 @@ class Client:
 
         for batched_x, batched_y in batch_data(data, batch_size, self.seed):
             if isinstance(self.model, nn.DataParallel):
-                input = self.model.module.process_x(batched_x)
-                labels = self.model.module.process_y(batched_y)
+                # input = self.model.module.process_x(batched_x)
+                # labels = self.model.module.process_y(batched_y)
+                input, labels = self.model.module.process_batch(batched_x, batched_y, train=False)
             else:
                 input = self.model.process_x(batched_x)
                 labels = self.model.process_y(batched_y)
@@ -138,12 +143,12 @@ class Client:
                 total += labels_tensor.size(0)
                 correct += (predicted == labels_tensor).sum().item()
         if total == 0:
-            print("TOTAL is 0")
             accuracy = 0
             test_loss = 0
         else:
             accuracy = 100 * correct / total
             test_loss /= total
+            print(accuracy, correct, total)
         return {ACCURACY_KEY: accuracy, 'loss': test_loss}
 
     @property

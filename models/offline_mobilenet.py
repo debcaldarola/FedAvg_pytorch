@@ -243,9 +243,9 @@ def main():
     # m2.load_state_dict(model.state_dict())
 
     # print("--- Starting testing ---")
-    # model.eval()
-    # accuracy, loss = test(model, test_data, test_labels, batch_size=batch_size, device=device)
-    # print("Starting test accuracy: {:.2f}. Test loss: {:.2f}".format(accuracy, loss))
+    model.eval()
+    accuracy, loss = test(model, test_data, test_labels, batch_size=batch_size, device=device)
+    print("Starting test accuracy: {:.2f}. Test loss: {:.2f}".format(accuracy, loss))
 
     # Train
     print("--- Training network ---")

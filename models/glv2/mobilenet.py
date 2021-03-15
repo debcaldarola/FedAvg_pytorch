@@ -3,6 +3,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import PIL
+import torchvision
 from PIL import Image
 from torchvision import transforms
 
@@ -18,6 +19,9 @@ class ClientModel(nn.Module):
         self.num_classes = num_classes
         self.model = torch.hub.load('pytorch/vision:v0.6.0', 'mobilenet_v2', pretrained=True)
         self.model.classifier[1] = nn.Linear(in_features=1280, out_features=num_classes, bias=True)
+
+        # self.model = torchvision.models.resnet50(pretrained=True)
+        # self.model.fc = nn.Linear(in_features=2048, out_features=num_classes, bias=True)
 
         # self.features = nn.Sequential(*list(model.children())[:-1])
         # self.classifier = nn.Sequential(*list(model.children())[-1])
@@ -66,7 +70,7 @@ class ClientModel(nn.Module):
         x_batch = np.reshape(x_batch, (x_batch.shape[0], IMAGE_SIZE, IMAGE_SIZE, 3))
         return x_batch
 
-    def _load_image(self, img_name):
+    def _load_image(self, img_name, train):
         path = os.path.join(IMAGES_DIR, img_name[0], img_name[1], img_name[2])
         if not os.path.exists(path):
             # print("not existing path:", path)
@@ -87,23 +91,32 @@ class ClientModel(nn.Module):
             # return np.random.rand(3, 224, 224)
             return None
             # return np.zeros((3,224,224))
-        preprocess = transforms.Compose([
-            transforms.Resize(IMAGE_SIZE),
-            transforms.CenterCrop(224),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        ])
+        if train:
+            preprocess = transforms.Compose([
+                transforms.RandomResizedCrop(IMAGE_SIZE),
+                transforms.RandomHorizontalFlip(),
+                transforms.ColorJitter(.4, .4, .4),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+            ])
+        else:
+            preprocess = transforms.Compose([
+                transforms.Resize(IMAGE_SIZE),
+                transforms.CenterCrop(224),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+            ])
         input_tensor = preprocess(img)
         return input_tensor.cpu().detach().numpy()
 
     def process_y(self, raw_y_batch):
         return raw_y_batch
 
-    def process_batch(self, x_list, y_list):
+    def process_batch(self, x_list, y_list, train=True):
         x_batch = []
         y_batch = []
         for x, y in zip(x_list, y_list):
-            i = self._load_image(x)
+            i = self._load_image(x, train)
             if i is not None:
                 x_batch.append(i)
                 y_batch.append(y)

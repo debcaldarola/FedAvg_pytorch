@@ -23,7 +23,7 @@ def parse_file_information(file_path, train=True):
                 user_id = int(line['user_id'])
             else:
                 user_id = n_users
-                assigned += 1
+                # assigned += 1 PROVA CON UN SOLO UTENTE
                 if assigned == IMGS_PER_TEST_USER:
                     n_users += 1
                     assigned = 0

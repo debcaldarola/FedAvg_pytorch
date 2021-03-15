@@ -11,7 +11,7 @@ class ClientModel(nn.Module):
         self.num_classes = num_classes
         self.model = torch.hub.load('pytorch/vision:v0.6.0', 'mobilenet_v2', pretrained=True)
         self.model.classifier[1] = nn.Linear(in_features=1280, out_features=num_classes, bias=True)
-        self.size = self._model_size()
+        self.size = self.model_size()
 
     def forward(self, x):
         x = self.model(x)
@@ -20,6 +20,7 @@ class ClientModel(nn.Module):
     def process_x(self, raw_x_batch):
         x_batch = np.array(raw_x_batch)
         x_batch = np.reshape(x_batch, (x_batch.shape[0], IMAGE_SIZE, IMAGE_SIZE, 1))
+        x_batch = np.repeat(x_batch,3,3) # to RGB
         return x_batch
 
     def process_y(self, raw_y_batch):
