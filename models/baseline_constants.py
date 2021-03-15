@@ -54,6 +54,7 @@ MODEL_PARAMS = {
     'sent140.stacked_lstm': (0.0003, 25, 2, 100), # lr, seq_len, num_classes, num_hidden
     'sent140.bag_log_reg': (0.0003, 2), # lr, num_classes
     'femnist.cnn': (0.0003, 62), # lr, num_classes
+    'femnist.mobilenet': (0.0003, 62), # lr, num_classes
     'shakespeare.stacked_lstm': (0.0003, 80, 80, 256), # lr, seq_len, num_classes, num_hidden
     'celeba.cnn': (0.1, 2), # lr, num_classes
     'celeba.mobilenet': (0.1, 2),
