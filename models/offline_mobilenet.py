@@ -8,16 +8,20 @@ import torch.nn.functional as F
 import pandas as pd
 import numpy as np
 import random
+import json
 import PIL
 from PIL import Image
 import matplotlib.pyplot as plt
 from torchvision import transforms
+from utils.model_utils import read_data
 
-IMAGES_DIR = os.path.join('..', 'data', 'glv2', 'data', 'raw', 'train')
-IMAGES_DIR_TEST = os.path.join('..', 'data', 'glv2', 'data', 'raw', 'test')
+# IMAGES_DIR = os.path.join('..', 'data', 'glv2', 'data', 'raw', 'train')
+IMAGES_DIR = os.path.join('/', 'home', 'valerio', 'datasets', 'classification_datasets', 'glv2', 'train')
 TRAIN_FILE_DIR = os.path.join('..', 'data', 'glv2', 'landmarks-user-160k')
 TEST_FILE_DIR = os.path.join('..', 'data', 'glv2', 'landmarks-user-160k')
 IMAGE_SIZE = 224
+
+OVERFIT = False
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -28,7 +32,7 @@ def parse_args():
                         default='landmarks_160')
     parser.add_argument('-device',
                         type=str,
-                        default='cuda')
+                        default='cuda:0')
     parser.add_argument('--train-file',
                         required=True,
                         type=str)
@@ -41,21 +45,21 @@ def load_image(img_name):
     path = os.path.join(IMAGES_DIR, img_name[0], img_name[1], img_name[2])
     # img_name = img_name + ".jpg"
     if not os.path.exists(path):
-        print("not existing path:", path)
+        # print("not existing path:", path)
         # return np.random.rand(3,224,224)
         # return np.zeros((3, 224, 224))
         return None
     img_name = img_name + ".jpg"
     img_path = os.path.join(path, img_name)
     if not os.path.exists(img_path):
-        print("not existing img:", img_name)
+        # print("not existing img:", img_name)
         # return np.random.rand(3,224,224)
         #  return np.zeros((3, 224, 224))
         return None
     try:
         img = Image.open(img_path)
     except PIL.UnidentifiedImageError:
-        print("Corrupted image:",img_path)
+        # print("Corrupted image:",img_path)
         # return np.random.rand(3, 224, 224)
         return None
         # return np.zeros((3, 224, 224))
@@ -83,9 +87,38 @@ def process_batch(x_list, y_list):
         if i is not None:
             x_batch.append(i)
             y_batch.append(y)
-        else:
-            print("empty batch")
+    if len(y_batch) == 0:
+        print("empty batch")
     return np.array(x_batch), y_batch
+
+def create_dataset(dir_path):
+    """ Returns dataset with the format {'x': [list of images pixels], 'y': [labels]} """
+
+    dataset = {'x': [], 'y': []}
+    files = os.listdir(dir_path)
+    print(dir_path)
+    files = [f for f in files if f.endswith('.json')]
+    print(files)
+    for f in files:
+        file_path = os.path.join(dir_path, f)
+        print(file_path)
+        with open(file_path, 'r') as file_content:
+            data = json.load(file_content)
+            users = data['user_data']
+            for u in users:
+                images = data['user_data'][u]['x']
+                labels = data['user_data'][u]['y']
+                for i in range(len(labels)):
+                    dataset['x'].append(images[i])
+                    dataset['y'].append(labels[i])
+    return dataset
+
+def setup_dataset(dataset):
+    train_data_dir = os.path.join('..', 'data', dataset, 'data', 'train')
+    test_data_dir = os.path.join('..', 'data', dataset, 'data', 'test')
+    train_set = create_dataset(train_data_dir)
+    test_set = create_dataset(test_data_dir)
+    return train_set, test_set
 
 def plot_score(scores, n_epochs, title, ylabel, fig_name):
     epochs = range(n_epochs)
@@ -107,7 +140,7 @@ def train(model, train_dataset, labels, **kwargs):
     batch_size = kwargs['batch_size']
     device = kwargs['device']
 
-    fp = open("offline_mobilenet.txt", "w")
+    fp = open("offline_mobilenet.txt2", "w")
 
     print("Training with {:d} epochs and batch size {:d}".format(n_epochs, batch_size))
     losses = []
@@ -121,6 +154,7 @@ def train(model, train_dataset, labels, **kwargs):
             # batched_y = labels[k:k + batch_size]
             batched_x, batched_y = process_batch(train_dataset[k:k + batch_size], labels[k:k + batch_size])
             if len(batched_x) == 0:
+                i += 1
                 continue
             input_data_tensor = torch.from_numpy(batched_x).type(torch.FloatTensor).to(device)
             target_data_tensor = torch.LongTensor(batched_y).to(device)
@@ -172,9 +206,21 @@ def test(model, data, labels, **kwargs):
 def main():
     args = parse_args()
     df = pd.read_csv(os.path.join(TRAIN_FILE_DIR, args.train_file))
-    df_test = pd.read_csv(os.path.join(TEST_FILE_DIR, args.test_file))
+    # df_test = pd.read_csv(os.path.join(TEST_FILE_DIR, args.test_file))
 
-    n_classes = len(set(df['class'].tolist()))
+    # input_data = df['image_id'].tolist()
+    # labels = df['class'].tolist()
+    # test_data = df_test['image_id'].tolist()
+    # test_labels = df_test['class'].tolist()
+
+    print("--- Loading dataset ---")
+    train_set, test_set = setup_dataset(args.dataset)
+    input_data = train_set['x']
+    labels = train_set['y']
+    test_data = test_set['x']
+    test_labels = test_set['y']
+
+    n_classes = len(set(labels))
     batch_size = 32
     n_epochs = 5
     device = torch.device(args.device if torch.cuda.is_available else 'cpu')
@@ -185,26 +231,36 @@ def main():
     mod = importlib.import_module(model_path)
     ClientModel = getattr(mod, 'ClientModel')
     model = ClientModel(0.01, n_classes, device).to(device)
+    model = nn.DataParallel(model).to(device)
     # model = torch.hub.load('pytorch/vision:v0.6.0', 'mobilenet_v2', pretrained=True).to(device)
     # model = nn.DataParallel(model)
     # model.module.classifier[1] = nn.Linear(in_features=1280, out_features=n_classes, bias=True).to(device)
+    # model = model.to(device)
     #
     # m2 = torch.hub.load('pytorch/vision:v0.6.0', 'mobilenet_v2', pretrained=True).to(device)
     # m2 = nn.DataParallel(m2)
     # m2.module.classifier[1] = nn.Linear(in_features=1280, out_features=n_classes, bias=True).to(device)
     # m2.load_state_dict(model.state_dict())
 
+    # print("--- Starting testing ---")
+    # model.eval()
+    # accuracy, loss = test(model, test_data, test_labels, batch_size=batch_size, device=device)
+    # print("Starting test accuracy: {:.2f}. Test loss: {:.2f}".format(accuracy, loss))
+
     # Train
     print("--- Training network ---")
     model.train()
-    input_data = df['image_id'].tolist()
-    labels = df['class'].tolist()
     data = list(zip(input_data, labels))
     random.shuffle(data)
     input_data, labels = zip(*data)
     # print(input_data, labels)
     optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
     criterion = nn.CrossEntropyLoss().to(device)
+    if OVERFIT:
+        input_data = input_data[0:batch_size]
+        labels = labels[0:batch_size]
+        print(input_data)
+        print(labels)
     train(model=model, train_dataset=input_data, labels=labels, criterion=criterion,
           optimizer=optimizer, n_epochs=n_epochs, batch_size=batch_size, device=device)
 
@@ -219,12 +275,13 @@ def main():
 
     # Test
     print("--- Testing ---")
-    test_data = df_test['image_id'].tolist()
-    test_labels = df_test['class'].tolist()
     model.eval()
+    if OVERFIT:
+        test_data = input_data[0:batch_size]
+        test_labels = labels[0:batch_size]
     accuracy, loss = test(model, test_data, test_labels, batch_size=batch_size, device=device)
     print("Test accuracy: {:.2f}. Test loss: {:.2f}".format(accuracy, loss))
-    fp = open("offline_mobilenet.txt", "a")
+    fp = open("offline_mobilenet2.txt", "a")
     fp.write("Test accuracy: {:.2f}. Test loss: {:.2f}\n".format(accuracy, loss))
     fp.close()
 
