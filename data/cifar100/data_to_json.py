@@ -1,9 +1,17 @@
 import os
-import csv
+import argparse
 from csv import DictReader
 import json
 
-ONE_TRAIN_FILE = True
+# ONE_TRAIN_FILE = True
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-alpha',
+                        required=True,
+                        type=float,
+                        choices=[0.00, 0.50, 1.00, 2.00, 5.00, 10.00, 100.00, 1000.00])
+    return parser.parse_args()
 
 def save_as_json_file(filename, data):
     with open(filename, 'w+') as fp:
@@ -22,7 +30,7 @@ def parse_file_information(file_path, train=True):
                 user_id = int(line['user_id'])
             else:
                 user_id = n_users
-                n_users += 1
+                # n_users += 1
             image_id = int(line['image_id'])
             if not train:
                 image_id += test_img_id
@@ -40,26 +48,29 @@ def parse_file_information(file_path, train=True):
 
     return dictionary
 
-def parse_file(csv_path, dir_path, train=True):
+def parse_file(csv_path, dir_path, train=True, alpha=None):
     files = os.listdir(csv_path)
     if train:
-        files = [f for f in files if f.endswith('.csv') and 'test' not in f]
+        files = [f for f in files if f.endswith('_' + str(alpha) + '0.csv') and 'test' not in f]
     else:
         files = [f for f in files if 'test' in f]
-    for f in files:
-        file_path = os.path.join(csv_path, f)
-        dictionary = parse_file_information(file_path, train)
-        f_name = f[:-4] + '.json'
-        json_path = os.path.join(dir_path, f_name)
-        save_as_json_file(json_path, dictionary)
-        if ONE_TRAIN_FILE:
-            break
+    assert len(files) == 1
+    f = files[0]
+    print("Parsing file ", f)
+    file_path = os.path.join(csv_path, f)
+    dictionary = parse_file_information(file_path, train)
+    f_name = f[:-4] + '.json'
+    json_path = os.path.join(dir_path, f_name)
+    save_as_json_file(json_path, dictionary)
 
 
 def main():
+    args = parse_args()
+    alpha = args.alpha
+    assert alpha in [0.00, 0.50, 1.00, 2.00, 5.00, 10.00, 100.00, 1000.00]
     csv_path = os.path.join('.', 'cifar100')
     if not os.path.exists(csv_path):
-        print("Launch program in /leaf_pytorch/data/cifar10/")
+        print("Launch program in /leaf_pytorch/data/cifar100/")
         exit(0)
 
     # Create train and test directories to store json files
@@ -71,7 +82,7 @@ def main():
         os.makedirs(test_data_dir)
 
     # Read files and save them as json in the required format
-    parse_file(csv_path, train_data_dir)
+    parse_file(csv_path, train_data_dir, alpha=alpha)
     parse_file(csv_path, test_data_dir, train=False)
 
 

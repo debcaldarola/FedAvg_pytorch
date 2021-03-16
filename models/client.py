@@ -88,7 +88,11 @@ class Client:
                 target_data = self.model.process_y(batched_y)
             if input_data is None:
                 continue
-            input_data_tensor = torch.from_numpy(input_data).type(torch.FloatTensor).permute(0, 3, 1, 2).to(self.device)
+            if len(input_data) != len(target_data):
+                print(self.id, len(input_data), len(target_data))
+                input_data = input_data[:-1]
+            # input_data_tensor = torch.from_numpy(input_data).type(torch.FloatTensor).permute(0, 3, 1, 2).to(self.device)
+            input_data_tensor = torch.from_numpy(input_data).type(torch.FloatTensor).to(self.device)
             target_data_tensor = torch.LongTensor(target_data).to(self.device)
             optimizer.zero_grad()
             outputs = self.model(input_data_tensor)
@@ -114,7 +118,6 @@ class Client:
         assert set_to_use in ['train', 'test', 'val']
         if set_to_use == 'train':
             data = self.train_data
-            print(self.id, len(data['y']), data['y'])
         elif set_to_use == 'test' or set_to_use == 'val':
             data = self.eval_data
 
@@ -133,7 +136,11 @@ class Client:
                 labels = self.model.process_y(batched_y)
             if input is None:
                 continue
-            input_tensor = torch.from_numpy(input).type(torch.FloatTensor).permute(0, 3, 1, 2).to(self.device)
+            if len(input) != len(labels):
+                print(self.id, len(input), len(labels))
+                input = input[:-1]
+            # input_tensor = torch.from_numpy(input).type(torch.FloatTensor).permute(0, 3, 1, 2).to(self.device)
+            input_tensor = torch.from_numpy(input).type(torch.FloatTensor).to(self.device)
             labels_tensor = torch.LongTensor(labels).to(self.device)
 
             with torch.no_grad():
@@ -148,7 +155,6 @@ class Client:
         else:
             accuracy = 100 * correct / total
             test_loss /= total
-            print(accuracy, correct, total)
         return {ACCURACY_KEY: accuracy, 'loss': test_loss}
 
     @property
