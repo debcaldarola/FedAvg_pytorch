@@ -55,9 +55,8 @@ def main():
     if args.load:   # load model from checkpoint
         print("--- Loading model from checkpoint ---")
         load_path = os.path.join('.', 'checkpoints', args.dataset, '{}.ckpt'.format(args.model + '_fedavg'))
-        # client_model.load_state_dict(torch.load(load_path))
         client_model = torch.load(load_path)
-    if args.model == 'mobilenet':
+    elif args.multigpu:
         client_model = nn.DataParallel(client_model)    # multiple GPUs usage if more memory is required
     client_model = client_model.to(device)
 

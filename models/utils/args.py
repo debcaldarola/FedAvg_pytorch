@@ -49,10 +49,14 @@ def parse_args():
     parser.add_argument('--use-val-set', 
                     help='use validation set;', 
                     action='store_true')
-    parser.add_argument('--device',
+    parser.add_argument('-device',
                         type=str,
                         default='cuda:0')
     parser.add_argument('-load',
+                        type=bool,
+                        default=False)
+    parser.add_argument('multigpu',
+                        help='set to True if you wish to run the model on multiple GPUs',
                         type=bool,
                         default=False)
 
