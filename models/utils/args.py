@@ -55,7 +55,7 @@ def parse_args():
     parser.add_argument('-load',
                         type=bool,
                         default=False)
-    parser.add_argument('multigpu',
+    parser.add_argument('-multigpu',
                         help='set to True if you wish to run the model on multiple GPUs',
                         type=bool,
                         default=False,
