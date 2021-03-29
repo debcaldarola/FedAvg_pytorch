@@ -58,7 +58,8 @@ def parse_args():
     parser.add_argument('multigpu',
                         help='set to True if you wish to run the model on multiple GPUs',
                         type=bool,
-                        default=False)
+                        default=False,
+                        required=False)
 
     # Minibatch doesn't support num_epochs, so make them mutually exclusive
     epoch_capability_group = parser.add_mutually_exclusive_group()
