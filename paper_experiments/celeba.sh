@@ -4,23 +4,12 @@ output_dir="${1:-./baseline}"
 
 split_seed="1549786796"
 sampling_seed="1549786595"
-#num_rounds="2000"
 num_rounds="100"
 
-#fedavg_lr="0.004"
 fedavg_lr="0.001"
 # fedavg_vals: clients_per_round num_epochs
-#declare -a fedavg_vals=( "3 1"
-#			 "3 100"
-#			 "35 1" )
 batch_size ="5"
 declare -a fedavg_vals=( "10 1")
-
-
-minibatch_lr="0.06"
-declare -a minibatch_vals=( "3 1"
-			    "3 0.1"
-			    "35 1" )
 
 ###################### Functions ###################################
 
