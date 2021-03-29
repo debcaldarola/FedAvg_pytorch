@@ -1,7 +1,7 @@
-# LEAF: A Benchmark for Federated Settings
+# Federated Learning framework based on FedAvg
 
 PyTorch-based Federated Learning framework based on FederatedAveraging (FedAvg) algorithm.
-This is an unofficial translation of the framework proposed by LEAF in TensorFlow. References follow. 
+This is an unofficial translation of the framework proposed by Caldas et a. in **LEAF** (written in TensorFlow). References follow. 
 
 ## Resources
 
