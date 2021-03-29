@@ -2,14 +2,13 @@ import numpy as np
 import torch
 
 from collections import OrderedDict
-from baseline_constants import BYTES_WRITTEN_KEY, BYTES_READ_KEY, LOCAL_COMPUTATIONS_KEY
+from baseline_constants import BYTES_WRITTEN_KEY, BYTES_READ_KEY
 
 
 class Server:
 
     def __init__(self, client_model):
         self.client_model = client_model
-        # self.model = client_model.parameters()
         self.model = client_model.state_dict()
         self.selected_clients = []
         self.updates = []
@@ -58,11 +57,9 @@ class Server:
         sys_metrics = {
             c.id: {BYTES_WRITTEN_KEY: 0,
                    BYTES_READ_KEY: 0,
-                   # LOCAL_COMPUTATIONS_KEY: 0
                    } for c in clients}
 
         for c in clients:
-            # c.model.load_state_dict(self.client_model.state_dict())
             c.model.load_state_dict(self.model)
             num_samples, update = c.train(num_epochs, batch_size, minibatch)
             if isinstance(c.model, torch.nn.DataParallel):
@@ -71,7 +68,6 @@ class Server:
             else:
                 sys_metrics[c.id][BYTES_READ_KEY] += c.model.size
                 sys_metrics[c.id][BYTES_WRITTEN_KEY] += c.model.size
-            # sys_metrics[c.id][LOCAL_COMPUTATIONS_KEY] = comp
 
             self.updates.append((num_samples, update))
 
@@ -112,9 +108,7 @@ class Server:
             clients_to_test = self.selected_clients
 
         for client in clients_to_test:
-            # client.model.load_state_dict(self.client_model.state_dict())
             client.model.load_state_dict(self.model)
-            # client.model.set_params(self.model)
             c_metrics = client.test(batch_size, set_to_use)
             metrics[client.id] = c_metrics
 

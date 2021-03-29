@@ -9,12 +9,10 @@ import torch.nn.functional as F
 from utils.model_utils import batch_data
 from baseline_constants import ACCURACY_KEY
 
-GLV2 = False
-
 class Client:
     
     def __init__(self, seed, client_id, lr, group=None, train_data={'x' : [],'y' : []}, eval_data={'x' : [],'y' : []},
-                 model=None, device=None, mobilenet=False):
+                 model=None, device=None):
         self._model = model
         self.id = client_id
         self.group = group
@@ -23,11 +21,7 @@ class Client:
         self.seed = seed
         self.device = device
         self.lr = lr
-        self.mobilenet = mobilenet
-        if mobilenet:
-            self.weight_decay = 4*10**(-5)
-        else:
-            self.weight_decay = 0
+        self.weight_decay = 0
 
     def train(self, num_epochs=1, batch_size=10, minibatch=None):
         """Trains on self.model using the client's train_data.
@@ -46,19 +40,15 @@ class Client:
         if minibatch is None:
             data = self.train_data
             num_data = batch_size
-            #comp, update = self.model.train(data, num_epochs, batch_size)
         else:
             frac = min(1.0, minibatch)
             num_data = max(1, int(frac*len(self.train_data["x"])))
             xs, ys = zip(*random.sample(list(zip(self.train_data["x"], self.train_data["y"])), num_data))
             data = {'x': xs, 'y': ys}
-
             # Minibatch trains for only 1 epoch - multiple local epochs don't make sense!
             num_epochs = 1
 
-        # print(self.id, len(data['y']), data['y'])
-
-        # train model
+        # Train model
         criterion = nn.CrossEntropyLoss().to(self.device)  # it already does softmax computation
         optimizer = optim.SGD(self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay)
         losses = np.empty(num_epochs)
@@ -79,18 +69,11 @@ class Client:
         i = 0
         for batched_x, batched_y in batch_data(data, batch_size, seed=self.seed):
             if isinstance(self.model, nn.DataParallel):
-                # input_data = self.model.module.process_x(batched_x)
-                # target_data = self.model.module.process_y(batched_y)
-                # NB DA MODIFICARE PER FEMNIST
-                input_data, target_data = self.model.module.process_batch(batched_x, batched_y)
+                input_data = self.model.module.process_x(batched_x)
+                target_data = self.model.module.process_y(batched_y)
             else:
                 input_data = self.model.process_x(batched_x)
                 target_data = self.model.process_y(batched_y)
-            if input_data is None:
-                continue
-            if len(input_data) != len(target_data):
-                print(self.id, len(input_data), len(target_data))
-                input_data = input_data[:-1]
             # input_data_tensor = torch.from_numpy(input_data).type(torch.FloatTensor).permute(0, 3, 1, 2).to(self.device)
             input_data_tensor = torch.from_numpy(input_data).type(torch.FloatTensor).to(self.device)
             target_data_tensor = torch.LongTensor(target_data).to(self.device)
@@ -128,17 +111,12 @@ class Client:
 
         for batched_x, batched_y in batch_data(data, batch_size, self.seed):
             if isinstance(self.model, nn.DataParallel):
-                # input = self.model.module.process_x(batched_x)
-                # labels = self.model.module.process_y(batched_y)
-                input, labels = self.model.module.process_batch(batched_x, batched_y, train=False)
+                input = self.model.module.process_x(batched_x)
+                labels = self.model.module.process_y(batched_y)
+                # input, labels = self.model.module.process_batch(batched_x, batched_y, train=False)
             else:
                 input = self.model.process_x(batched_x)
                 labels = self.model.process_y(batched_y)
-            if input is None:
-                continue
-            if len(input) != len(labels):
-                print(self.id, len(input), len(labels))
-                input = input[:-1]
             # input_tensor = torch.from_numpy(input).type(torch.FloatTensor).permute(0, 3, 1, 2).to(self.device)
             input_tensor = torch.from_numpy(input).type(torch.FloatTensor).to(self.device)
             labels_tensor = torch.LongTensor(labels).to(self.device)

@@ -21,10 +21,12 @@ SYS_METRICS_PATH = 'metrics/sys_metrics.csv'
 def main():
     args = parse_args()
 
-    # Set the random seed if provided (affects client sampling, and batching)
+    # Set the random seed if provided (affects client sampling and batching)
     random.seed(1 + args.seed)
     np.random.seed(123 + args.seed)
+    torch.manual_seed(args.seed)
 
+    # Obtain the path to client's model (e.g. celeba/cnn.py)
     model_path = '%s/%s.py' % (args.dataset, args.model)
     if not os.path.exists(model_path):
         print('Please specify a valid dataset and a valid model.')
@@ -50,20 +52,21 @@ def main():
 
     # Create client model, and share params with server model
     client_model = ClientModel(*model_params, device)
-    if args.load:
+    if args.load:   # load model from checkpoint
         print("--- Loading model from checkpoint ---")
         load_path = os.path.join('.', 'checkpoints', args.dataset, '{}.ckpt'.format(args.model + '_fedavg'))
         # client_model.load_state_dict(torch.load(load_path))
         client_model = torch.load(load_path)
     if args.model == 'mobilenet':
-        client_model = nn.DataParallel(client_model)
+        client_model = nn.DataParallel(client_model)    # multiple GPUs usage if more memory is required
     client_model = client_model.to(device)
+
     # Create server
     server = Server(client_model)
 
-    # Create clients
+    # Create and set up clients
     train_clients, test_clients = setup_clients(args.dataset, client_model, args.use_val_set, args.seed, device,
-                                                args.lr, args.model=='mobilenet')
+                                                args.lr)
     train_client_ids, train_client_groups, train_client_num_samples = server.get_clients_info(train_clients)
     test_client_ids, test_client_groups, test_client_num_samples = server.get_clients_info(test_clients)
     if set(train_client_ids) == set(test_client_ids):
@@ -73,6 +76,7 @@ def main():
 
     # Initial status
     print('--- Random Initialization ---')
+    # Create file for storing results
     res_path = os.path.join('results', args.dataset, args.model)
     if not os.path.exists(res_path):
         os.makedirs(res_path)
@@ -101,6 +105,7 @@ def main():
         sys_metrics = server.train_model(num_epochs=args.num_epochs, batch_size=args.batch_size,
                                          minibatch=args.minibatch)
         sys_writer_fn(i + 1, c_ids, sys_metrics, c_groups, c_num_samples)
+
         # Update server model
         server.update_model()
 
@@ -126,14 +131,14 @@ def online(clients):
     return clients
 
 
-def create_clients(users, groups, train_data, test_data, model, seed, device, lr, mobilenet=False):
+def create_clients(users, groups, train_data, test_data, model, seed, device, lr):
     if len(groups) == 0:
         groups = [[] for _ in users]
-    clients = [Client(seed, u, lr, g, train_data[u], test_data[u], model, device, mobilenet=mobilenet) for u, g in zip(users, groups)]
+    clients = [Client(seed, u, lr, g, train_data[u], test_data[u], model, device) for u, g in zip(users, groups)]
     return clients
 
 
-def setup_clients(dataset, model=None, use_val_set=False, seed=None, device=None, lr=None, mobilenet=False):
+def setup_clients(dataset, model=None, use_val_set=False, seed=None, device=None, lr=None):
     """Instantiates clients based on given train and test data directories.
 
     Return:
@@ -145,8 +150,8 @@ def setup_clients(dataset, model=None, use_val_set=False, seed=None, device=None
 
     train_users, train_groups, test_users, test_groups, train_data, test_data = read_data(train_data_dir, test_data_dir)
 
-    train_clients = create_clients(train_users, train_groups, train_data, test_data, model, seed, device, lr, mobilenet)
-    test_clients = create_clients(test_users, test_groups, train_data, test_data, model, seed, device, lr, mobilenet)
+    train_clients = create_clients(train_users, train_groups, train_data, test_data, model, seed, device, lr)
+    test_clients = create_clients(test_users, test_groups, train_data, test_data, model, seed, device, lr)
 
     return train_clients, test_clients
 
@@ -171,10 +176,8 @@ def get_sys_writer_function(args):
 
 def print_stats(
         num_round, server, train_clients, train_num_samples, test_clients, test_num_samples, args, writer, use_val_set, fp):
-    # train_stat_metrics = server.test_model(train_clients, args.batch_size, set_to_use='train')
+
     train_stat_metrics = server.test_model(train_clients, args.batch_size, set_to_use='train')
-    # print_metrics(train_stat_metrics, train_num_samples, fp, prefix='train_')
-    _, _, num_samples = server.get_clients_info(None)
     print_metrics(train_stat_metrics, train_num_samples, fp, prefix='train_')
     writer(num_round, train_stat_metrics, 'train')
 

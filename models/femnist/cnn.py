@@ -2,8 +2,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch
 import numpy as np
-# import os
-# from PIL import Image
 
 IMAGE_SIZE = 28
 
@@ -32,16 +30,15 @@ class ClientModel(nn.Module):
     def forward(self, x):
         x = self.layer1(x.float())
         x = self.layer2(x)
-        x = torch.reshape(x,(x.shape[0], -1))
+        x = torch.reshape(x, (x.shape[0], -1))
         x = self.fc1(x)
         x = F.relu(x)
         logits = self.fc2(x)
         return logits
 
     def process_x(self, raw_x_batch):
-        #x_batch = [self._load_image(i) for i in raw_x_batch]
         x_batch = np.array(raw_x_batch)
-        x_batch = np.reshape(x_batch, (x_batch.shape[0], IMAGE_SIZE, IMAGE_SIZE, 1))
+        x_batch = np.reshape(x_batch, (x_batch.shape[0], 1, IMAGE_SIZE, IMAGE_SIZE))  # 1 channel (black and white img)
         return x_batch
 
     def process_y(self, raw_y_batch):
@@ -52,10 +49,3 @@ class ClientModel(nn.Module):
         for param in self.parameters():
             tot_size += param.size()[0]
         return tot_size
-
-    #def _load_image(self, img_name):
-    #    img = Image.open(os.path.join(IMAGES_DIR, img_name))
-    #    img = img.resize((IMAGE_SIZE, IMAGE_SIZE)).convert('RGB')
-    #    return np.array(img)
-
-

@@ -37,7 +37,9 @@ class ClientModel(nn.Module):
     def _load_image(self, img_name):
         img = Image.open(os.path.join(IMAGES_DIR, img_name))
         img = img.resize((IMAGE_SIZE, IMAGE_SIZE)).convert('RGB')
-        return np.array(img)
+        img_array = np.array(img)
+        img_array = np.moveaxis(img_array, 2, 0)  # from channel-last to channel-first format
+        return img_array
 
     def model_size(self):
         tot_size = 0
