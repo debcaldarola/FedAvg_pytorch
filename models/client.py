@@ -68,9 +68,9 @@ class Client:
         running_loss = 0.0
         i = 0
         for batched_x, batched_y in batch_data(data, batch_size, seed=self.seed):
-            if len(batched_x) != len(batched_y):
-                print(self.id)
-                batched_x.pop()
+            # if len(batched_x) != len(batched_y):
+            #     print(self.id)
+            #     batched_x.pop()
             if isinstance(self.model, nn.DataParallel):
                 input_data = self.model.module.process_x(batched_x)
                 target_data = self.model.module.process_y(batched_y)
@@ -112,9 +112,9 @@ class Client:
         total = 0
         test_loss = 0
         for batched_x, batched_y in batch_data(data, batch_size, self.seed):
-            if len(batched_x) != len(batched_y):
-                print(self.id)
-                batched_x.pop()
+            # if len(batched_x) != len(batched_y):
+            #     print(self.id)
+            #     batched_x.pop()
             if isinstance(self.model, nn.DataParallel):
                 input = self.model.module.process_x(batched_x)
                 labels = self.model.module.process_y(batched_y)
