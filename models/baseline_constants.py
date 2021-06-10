@@ -23,7 +23,7 @@ MODEL_PARAMS = {
     'femnist.cnn': (0.0003, 62), # lr, num_classes
     'celeba.cnn': (0.1, 2), # lr, num_classes
     'celeba.mobilenet': (0.1, 2),
-    'cifar100.cnn': (0.01, 10)
+    'cifar100.cnn': (0.01, 100)
 }
 """dict: Model specific parameter specification"""
 
