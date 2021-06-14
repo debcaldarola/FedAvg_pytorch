@@ -13,6 +13,8 @@ from client import Client
 from server import Server
 from utils.args import parse_args
 from utils.model_utils import read_data
+from datetime import datetime
+import matplotlib.pyplot as plt
 
 STAT_METRICS_PATH = 'metrics/stat_metrics.csv'
 SYS_METRICS_PATH = 'metrics/sys_metrics.csv'
@@ -52,12 +54,12 @@ def main():
 
     # Create client model, and share params with server model
     client_model = ClientModel(*model_params, device)
-    if args.load:   # load model from checkpoint
+    if args.load:  # load model from checkpoint
         print("--- Loading model from checkpoint ---")
         load_path = os.path.join('.', 'checkpoints', args.dataset, '{}.ckpt'.format(args.model + '_fedavg'))
         client_model = torch.load(load_path)
     elif args.multigpu:
-        client_model = nn.DataParallel(client_model)    # multiple GPUs usage if more memory is required
+        client_model = nn.DataParallel(client_model)  # multiple GPUs usage if more memory is required
     client_model = client_model.to(device)
 
     # Create server
@@ -75,25 +77,42 @@ def main():
 
     # Initial status
     print('--- Random Initialization ---')
+
+    stat_writer_fn = get_stat_writer_function(test_client_ids, test_client_groups, test_client_num_samples, args)
+    sys_writer_fn = get_sys_writer_function(args)
+
+    ckpt_path = os.path.join('checkpoints', args.dataset)
+    if not os.path.exists(ckpt_path):
+        os.makedirs(ckpt_path)
+
+    val_accuracies = []
+    val_loss = []
+    test_accuracies = []
+    test_loss = []
+    val_rounds = []
+
     # Create file for storing results
     res_path = os.path.join('results', args.dataset, args.model)
     if not os.path.exists(res_path):
         os.makedirs(res_path)
-    file = os.path.join(res_path, 'results.txt')
+
+    start_time = datetime.now()
+    current_time = start_time.strftime("%m%d%y_%H:%M:%S")
+
+    file = os.path.join(res_path, 'results' + '_alpha0_N' + str(num_rounds) + '_K' + str(
+        clients_per_round) + '_' + current_time + '.txt')
     fp = open(file, "w")
 
-    stat_writer_fn = get_stat_writer_function(test_client_ids, test_client_groups, test_client_num_samples, args)
-    sys_writer_fn = get_sys_writer_function(args)
     print_stats(0, server, train_clients, train_client_num_samples, test_clients, test_client_num_samples, args,
                 stat_writer_fn, args.use_val_set, fp)
 
     # Simulate training
-    ckpt_path = os.path.join('checkpoints', args.dataset)
-    if not os.path.exists(ckpt_path):
-        os.makedirs(ckpt_path)
+
     for i in range(num_rounds):
         print('--- Round %d of %d: Training %d Clients ---' % (i + 1, num_rounds, clients_per_round))
         fp.write('--- Round %d of %d: Training %d Clients ---\n' % (i + 1, num_rounds, clients_per_round))
+
+        start_round = datetime.now()
 
         # Select clients to train during this round
         server.select_clients(i, online(train_clients), num_clients=clients_per_round)
@@ -108,21 +127,48 @@ def main():
         # Update server model
         server.update_model()
 
+        print("\tCommunication round duration: ", datetime.now()-start_round)
+
         # Test model
         if (i + 1) % eval_every == 0 or (i + 1) == num_rounds:
-            print_stats(i + 1, server, train_clients, train_client_num_samples, test_clients, test_client_num_samples,
-                        args, stat_writer_fn, args.use_val_set, fp)
+            val_metrics, test_metrics = print_stats(i + 1, server, train_clients, train_client_num_samples,
+                                                    test_clients, test_client_num_samples,
+                                                    args, stat_writer_fn, args.use_val_set, fp)
+            val_accuracies.append(val_metrics[0])
+            test_accuracies.append(test_metrics[0])
+            val_loss.append(val_metrics[1])
+            test_loss.append(test_metrics[1])
+            val_rounds.append(i)
 
-        save_path = server.save_model(os.path.join(ckpt_path, '{}.ckpt'.format(args.model + '_fedavg')))
+        save_path = server.save_model(os.path.join(ckpt_path, '{}.ckpt'.format(args.model + '_fedavg' + '_alpha0_' +
+                                       '_N' + str(num_rounds) + '_K' + str(clients_per_round) + '_' + current_time)))
         print('Model saved in path: %s' % save_path)
 
+    end_time = datetime.now()
+    tot_time = end_time - start_time
+    print("Total time for experiment: ", tot_time)
+    fp.write("Total time for experiment: %d seconds, %d microseconds " % (tot_time.seconds, tot_time.microseconds))
+
     # Save server model
-    save_path = server.save_model(os.path.join(ckpt_path, '{}.ckpt'.format(args.model + '_fedavg')))
+    save_path = server.save_model(os.path.join(ckpt_path, '{}.ckpt'.format(args.model + '_fedavg' + '_alpha0' +
+                                    '_N' + str(num_rounds) + '_K' + str(clients_per_round) + '_' + current_time)))
     print('Model saved in path: %s' % save_path)
 
     fp.close()
     print("File saved in path: %s" % res_path)
 
+    # Save plots
+    img_path = os.path.join('plots', args.dataset)
+    if not os.path.exists(img_path):
+        os.makedirs(img_path)
+
+    plot_metrics(val_accuracies, val_loss, val_rounds,
+                 'alpha0_val_N' + str(num_rounds) + '_K' + str(clients_per_round) + '_' + current_time,
+                 img_path, 'Validation on ' + args.dataset)
+    plot_metrics(test_accuracies, test_loss, val_rounds,
+                 'alpha0_test_N' + str(num_rounds) + '_K' + str(clients_per_round) + '_' + current_time,
+                 img_path, 'Test on ' + args.dataset, prefix='test_')
+    print("Plots saved in path: %s" % img_path)
 
 
 def online(clients):
@@ -174,16 +220,18 @@ def get_sys_writer_function(args):
 
 
 def print_stats(
-        num_round, server, train_clients, train_num_samples, test_clients, test_num_samples, args, writer, use_val_set, fp):
-
+        num_round, server, train_clients, train_num_samples, test_clients, test_num_samples, args, writer, use_val_set,
+        fp):
     train_stat_metrics = server.test_model(train_clients, args.batch_size, set_to_use='train')
-    print_metrics(train_stat_metrics, train_num_samples, fp, prefix='train_')
+    val_metrics = print_metrics(train_stat_metrics, train_num_samples, fp, prefix='train_')
     writer(num_round, train_stat_metrics, 'train')
 
     eval_set = 'test' if not use_val_set else 'val'
     test_stat_metrics = server.test_model(test_clients, args.batch_size, set_to_use=eval_set)
-    print_metrics(test_stat_metrics, test_num_samples, fp, prefix='{}_'.format(eval_set))
+    test_metrics = print_metrics(test_stat_metrics, test_num_samples, fp, prefix='{}_'.format(eval_set))
     writer(num_round, test_stat_metrics, eval_set)
+
+    return val_metrics, test_metrics
 
 
 def print_metrics(metrics, weights, fp, prefix=''):
@@ -197,7 +245,7 @@ def print_metrics(metrics, weights, fp, prefix=''):
     """
     ordered_weights = [weights[c] for c in sorted(weights)]
     metric_names = metrics_writer.get_metrics_names(metrics)
-    to_ret = None
+    metrics_values = []
     for metric in metric_names:
         ordered_metric = [metrics[c][metric] for c in sorted(metrics)]
         print('%s: %g, 10th percentile: %g, 50th percentile: %g, 90th percentile %g' \
@@ -207,11 +255,29 @@ def print_metrics(metrics, weights, fp, prefix=''):
                  np.percentile(ordered_metric, 50),
                  np.percentile(ordered_metric, 90)))
         fp.write('%s: %g, 10th percentile: %g, 50th percentile: %g, 90th percentile %g\n' \
-              % (prefix + metric,
-                 np.average(ordered_metric, weights=ordered_weights),
-                 np.percentile(ordered_metric, 10),
-                 np.percentile(ordered_metric, 50),
-                 np.percentile(ordered_metric, 90)))
+                 % (prefix + metric,
+                    np.average(ordered_metric, weights=ordered_weights),
+                    np.percentile(ordered_metric, 10),
+                    np.percentile(ordered_metric, 50),
+                    np.percentile(ordered_metric, 90)))
+        metrics_values.append(np.average(ordered_metric, weights=ordered_weights))
+    return metrics_values
+
+
+def plot_metrics(accuracy, loss, n_rounds, figname, figpath, title, prefix='val_'):
+    name = os.path.join(figpath, figname)
+
+    plt.plot(n_rounds, loss, '-b', label=prefix + 'loss')
+    plt.plot(n_rounds, accuracy, '-r', label=prefix + 'accuracy')
+
+    plt.xlabel("# rounds")
+    plt.ylabel("Average accuracy")
+    plt.legend(loc='upper left')
+    plt.title(title)
+
+    # save image
+    plt.savefig(name + '.png')  # should before show method
+    plt.close()
 
 
 if __name__ == '__main__':

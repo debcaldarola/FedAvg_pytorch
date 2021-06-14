@@ -39,6 +39,12 @@ This is an unofficial translation of the framework proposed by Caldas et a. in *
   * **Details:** 9343 users (we exclude celebrities with less than 5 images)
   * **Task:** Image Classification (Smiling vs. Not smiling)
 
+3. CIFAR-100
+  * **Overview**: Image Dataset based on [CIFAR-100](https://www.cs.toronto.edu/~kriz/cifar.html) and [Federated Vision Datasets](https://github.com/google-research/google-research/tree/master/federated_vision_datasets)
+  * **Details**: 100 users with 500 images each. Different combination are possible, following Dirichlet's distribution.
+  * **Task**: Image Classification on 100 classes
+
+
 [comment]: <> (5. Synthetic Dataset)
 
 [comment]: <> (  * **Overview:** We propose a process to generate synthetic, challenging federated datasets. The high-level goal is to create devices whose true models are device-dependant. To see a description of the whole generative process, please refer to the paper)
