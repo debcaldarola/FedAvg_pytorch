@@ -41,9 +41,13 @@ This is an unofficial translation of the framework proposed by Caldas et a. in *
 
 3. CIFAR-100
   * **Overview**: Image Dataset based on [CIFAR-100](https://www.cs.toronto.edu/~kriz/cifar.html) and [Federated Vision Datasets](https://github.com/google-research/google-research/tree/master/federated_vision_datasets)
-  * **Details**: 100 users with 500 images each. Different combination are possible, following Dirichlet's distribution.
+  * **Details**: 100 users with 500 images each. Different combinations are possible, following Dirichlet's distribution.
   * **Task**: Image Classification on 100 classes
 
+4. CIFAR-10
+  * **Overview**: Image Dataset based on [CIFAR10](https://www.cs.toronto.edu/~kriz/cifar.html) and [Federated Vision Datasets](https://github.com/google-research/google-research/tree/master/federated_vision_datasets)
+  * **Details**: 100 users with 500 images each. Different combinations are possible, following Dirichlet's distribution
+  * **Task**: Image Classification on 10 classes
 
 [comment]: <> (5. Synthetic Dataset)
 
