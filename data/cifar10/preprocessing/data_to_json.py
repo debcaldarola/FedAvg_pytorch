@@ -30,6 +30,10 @@ def parse_file_information(file_path, train=True):
             else:
                 user_id = n_users
             filename = line['filename']
+            filename = filename.split('/')[-1]
+            if not train:
+                filename = '/test/' + filename
+                print(filename)
             class_id = int(line['class'])
             if user_id not in dictionary["users"]:
                 dictionary["users"].append(user_id)
@@ -79,7 +83,7 @@ def main():
 
     # Read files and save them as json in the required format
     parse_file(csv_path, train_data_dir, alpha=alpha)
-    # parse_file(csv_path, test_data_dir, train=False)
+    parse_file(csv_path, test_data_dir, train=False)
 
 
 if __name__ == '__main__':
