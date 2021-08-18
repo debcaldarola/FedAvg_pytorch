@@ -6,7 +6,8 @@ from PIL import Image
 import torchvision.transforms as transforms
 
 IMAGE_SIZE = 299
-IMAGES_DIR = os.path.join('..', 'data', 'inaturalist', 'data', 'raw', 'train')
+TRAIN_IMAGES_DIR = os.path.join('..', 'data', 'inaturalist', 'data', 'raw', 'train')
+TEST_IMAGES_DIR = os.path.join('..', 'data', 'inaturalist', 'data', 'raw', 'test')
 
 transform_train = transforms.Compose([
     transforms.RandomCrop(IMAGE_SIZE),
@@ -66,7 +67,12 @@ class ClientModel(nn.Module):
         return np.array(raw_y_batch)
 
     def _load_image(self, img_name):
-        img = Image.open(os.path.join(IMAGES_DIR, img_name + '.jpg')).convert('RGB')
+        if os.path.exists(os.path.join(TRAIN_IMAGES_DIR, img_name + '.jpg')):
+            img_dir = TRAIN_IMAGES_DIR
+        else:
+            img_dir = TEST_IMAGES_DIR
+
+        img = Image.open(os.path.join(img_dir, img_name + '.jpg')).convert('RGB')
         w, h = img.size
         if w < IMAGE_SIZE or h < IMAGE_SIZE:
             return -1
