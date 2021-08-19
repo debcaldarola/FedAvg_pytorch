@@ -3,6 +3,7 @@ import json
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import seaborn as sns
 
 FILE_DIR = os.path.join('..', '..', 'data', 'inaturalist', 'data', 'train')
 
@@ -47,14 +48,14 @@ def get_distance_matrix(nclients, class_list_per_user):
     overlapping_classes = np.zeros(shape=(nclients, nclients))
     normalized_overlapping_classes = np.zeros(shape=(nclients, nclients))
 
-    for diag, c1_id in enumerate(class_list_per_user.keys()):
-        for row in range(0, nclients - diag):
-            col = row + diag
+    for row, c1_id in enumerate(class_list_per_user.keys()):
+        for col in range(row, nclients):
+            c2_id = list(class_list_per_user.keys())[col]
+            # print(row, col, c1_id, c2_id)
             if row == col:
                 normalized_overlapping_classes[row][row] = 1
-                overlapping_classes[row][row] = len(class_list_per_user[c1_id])
+                overlapping_classes[row][row] = len(class_list_per_user[c2_id])
                 continue
-            c2_id = list(class_list_per_user.keys())[col]
             c1_classes = class_list_per_user[c1_id]
             c2_classes = class_list_per_user[c2_id]
             n = compute_overlapping_classes(c1_classes, c2_classes)
@@ -71,9 +72,9 @@ def get_distance_matrix(nclients, class_list_per_user):
 def plot_histogram(labels, values, title):
     x = np.arange(len(labels))
     width = 0.8
+    plt.figure(figsize=(40, 40))
     fig, ax = plt.subplots()
     ax.bar(x=x-width, height=values, color='g')
-    plt.figure(figsize=(300, 300))
     # plt.rcParams["figure.figsize"] =
     ax.set_xlabel("Clients IDs")
     ax.set_ylabel("Number of classes per client")
@@ -86,28 +87,36 @@ def plot_histogram(labels, values, title):
     figpath = os.path.join('plots', 'dataset_analysis')
     if not os.path.exists(figpath):
         os.makedirs(figpath)
-    figname = os.path.join(figpath, 'classes_per_client_with_ticks4.png')
+    figname = os.path.join(figpath, 'classes_per_client_with_ticks5.png')
     plt.savefig(figname)
     plt.close()
 
 
-def plot_distance_matrix(distance_matrix, labels, title='Distance among clients\' tasks according to overlapping classes'):
+def plot_distance_matrix(distance_matrix_df, labels, title='Distance among clients\' tasks according to overlapping classes'):
+    # fig, ax = plt.subplots()
+    # # im = ax.matshow(distance_matrix)
     # plt.matshow(distance_matrix)
-    fig, ax = plt.subplots()
-    im = ax.matshow(distance_matrix)
-    ax.set_xticklabels(labels)
-    ax.set_yticklabels(labels)
-    plt.setp(ax.get_xticklabels(), rotation=45, ha="right",
-             rotation_mode="anchor")
-    fig.tight_layout()
-    plt.title(title)
-    plt.figure(figsize=(60, 60))
+    # ax.set_xticklabels(labels)
+    # ax.set_yticklabels(labels)
+    # plt.setp(ax.get_xticklabels(), rotation=45, ha="right",
+    #          rotation_mode="anchor")
+    # # fig.tight_layout()
+    # plt.title(title)
+    #
     # plt.rcParams["figure.figsize"] = (40, 40)
+
+    plt.figure(figsize=(60, 60))
+    ax = plt.axes()
+    sns_plot = sns.heatmap(distance_matrix_df, vmin=0, vmax=1, cmap="YlGnBu", ax=ax)
+    ax.set_title(title)
+    # figure = sns_plot.get_figure()
+
     # save image
     figpath = os.path.join('plots', 'dataset_analysis')
     if not os.path.exists(figpath):
         os.makedirs(figpath)
-    figname = os.path.join(figpath, 'clients_distance_matrix_large4.png')
+    figname = os.path.join(figpath, 'clients_distance_matrix_large6.png')
+    # figure.savefig(figname)
     plt.savefig(figname)
     plt.close()
 
@@ -120,9 +129,10 @@ def main():
 
     json_file = os.path.join(FILE_DIR, 'federated_train_user_120k.json')
     nclasses_per_user, class_list_per_user, tot_classes, nimgs_per_user = get_clients_info(json_file)
+    nclients = len(class_list_per_user.keys())
     print("--- DATASET STATISTICS ---")
     print("- Total classes: ", tot_classes)
-    print("- Total clients: ", len(class_list_per_user.keys()))
+    print("- Total clients: ", nclients)
     print("- Samples per client:")
     print("\t Average:", np.mean(list(nimgs_per_user.values())))
     print("\t Std deviation:", np.std(list(nimgs_per_user.values())))
@@ -136,19 +146,19 @@ def main():
     if not os.path.exists(cvs_path):
         os.makedirs(cvs_path)
     csv_name = 'nclasses_per_user.csv'
-    df1 = pd.DataFrame(list(nclasses_per_user.items()), index=nclasses_per_user.keys(), columns=['user_id', 'n_classes'])
+    df1 = pd.DataFrame(list(nclasses_per_user.items()), columns=['user_id', 'n_classes'])
     df1.to_csv(os.path.join(cvs_path, csv_name))
 
     # Plot distance matrix between clients according to overlapping classes
     print("Computing distance matrix...")
-    nclients = len(class_list_per_user.keys())
     distance_matrix, normalized_distance_matrix = get_distance_matrix(nclients, class_list_per_user)
     print(normalized_distance_matrix)
-    plot_distance_matrix(normalized_distance_matrix, class_list_per_user.keys())
 
     csv_name = 'clients_distance_matrix.csv'
     df2 = pd.DataFrame(normalized_distance_matrix, index=class_list_per_user.keys(),
                        columns=class_list_per_user.keys())
+    print(df2.head(10))
+    plot_distance_matrix(df2, class_list_per_user.keys())
     df2.to_csv(os.path.join(cvs_path, csv_name))
 
     csv_name = 'noverlapping_classes_matrix.csv'
