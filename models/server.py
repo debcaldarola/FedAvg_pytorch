@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+import copy
 
 from collections import OrderedDict
 from baseline_constants import BYTES_WRITTEN_KEY, BYTES_READ_KEY
@@ -8,8 +9,8 @@ from baseline_constants import BYTES_WRITTEN_KEY, BYTES_READ_KEY
 class Server:
 
     def __init__(self, client_model):
-        self.client_model = client_model
-        self.model = client_model.state_dict()
+        self.client_model = copy.deepcopy(client_model)
+        self.model = copy.deepcopy(client_model.state_dict())
         self.selected_clients = []
         self.updates = []
 
@@ -69,7 +70,7 @@ class Server:
                 sys_metrics[c.id][BYTES_READ_KEY] += c.model.size
                 sys_metrics[c.id][BYTES_WRITTEN_KEY] += c.model.size
 
-            self.updates.append((num_samples, update))
+            self.updates.append((num_samples, copy.deepcopy(update)))
 
         return sys_metrics
 
@@ -84,13 +85,16 @@ class Server:
                 else:
                     base[key] = (client_samples * value.type(torch.FloatTensor))
 
-        averaged_soln = self.model
+        averaged_soln = copy.deepcopy(self.model)
         for key, value in base.items():
             if total_weight != 0:
-                averaged_soln[key] = value / total_weight
+                averaged_soln[key] = value.to('cuda') / total_weight
+
+        diff = sum((x - y).abs().sum() for x, y in zip(self.model.values(), averaged_soln.values()))
+        print("before and after difference: ", diff)
 
         self.client_model.load_state_dict(averaged_soln)
-        self.model = self.client_model.state_dict()
+        self.model = copy.deepcopy(self.client_model.state_dict())
         self.updates = []
 
     def test_model(self, clients_to_test, batch_size, set_to_use='test'):

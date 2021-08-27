@@ -7,6 +7,8 @@ TARGET_TRAIN_DIR = '../data/raw/train/'
 TARGET_TEST_DIR = '../data/raw/test/'
 
 
+### NB: move all files from subdirectories to parent (current) dir: find . -mindepth 2 -type f -print -exec mv {} . \;
+
 def copy_images(path, imgs, train=True):
     cnt = 0
     cnt_skipped = 0
