@@ -75,8 +75,8 @@ def main():
     server = Server(client_model)
 
     # Create and set up clients
-    train_clients, test_clients = setup_clients(args.dataset, client_model, args.use_val_set, args.seed, device,
-                                                args.lr)
+    train_clients, test_clients = setup_clients(args.dataset, args.lr, args.weight_decay, client_model,
+                                                args.use_val_set, args.seed, device)
     train_client_ids, train_client_groups, train_client_num_samples = server.get_clients_info(train_clients)
     test_client_ids, test_client_groups, test_client_num_samples = server.get_clients_info(test_clients)
     if set(train_client_ids) == set(test_client_ids):
@@ -203,14 +203,14 @@ def online(clients):
     return clients
 
 
-def create_clients(users, groups, train_data, test_data, model, seed, device, lr):
+def create_clients(users, groups, train_data, test_data, model, seed, device, lr, weight_decay):
     if len(groups) == 0:
         groups = [[] for _ in users]
-    clients = [Client(seed, u, lr, g, train_data[u], test_data[u], model, device) for u, g in zip(users, groups)]
+    clients = [Client(seed, u, lr, weight_decay, g, train_data[u], test_data[u], model, device) for u, g in zip(users, groups)]
     return clients
 
 
-def setup_clients(dataset, model=None, use_val_set=False, seed=None, device=None, lr=None):
+def setup_clients(dataset, lr, weight_decay, model=None, use_val_set=False, seed=None, device=None):
     """Instantiates clients based on given train and test data directories.
 
     Return:
@@ -222,8 +222,8 @@ def setup_clients(dataset, model=None, use_val_set=False, seed=None, device=None
 
     train_users, train_groups, test_users, test_groups, train_data, test_data = read_data(train_data_dir, test_data_dir)
 
-    train_clients = create_clients(train_users, train_groups, train_data, test_data, model, seed, device, lr)
-    test_clients = create_clients(test_users, test_groups, train_data, test_data, model, seed, device, lr)
+    train_clients = create_clients(train_users, train_groups, train_data, test_data, model, seed, device, lr, weight_decay)
+    test_clients = create_clients(test_users, test_groups, train_data, test_data, model, seed, device, lr, weight_decay)
 
     return train_clients, test_clients
 

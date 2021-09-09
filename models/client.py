@@ -13,7 +13,7 @@ from baseline_constants import ACCURACY_KEY
 
 class Client:
 
-    def __init__(self, seed, client_id, lr, group=None, train_data={'x': [], 'y': []}, eval_data={'x': [], 'y': []},
+    def __init__(self, seed, client_id, lr, weight_decay, group=None, train_data={'x': [], 'y': []}, eval_data={'x': [], 'y': []},
                  model=None, device=None):
         self._model = model
         self.id = client_id
@@ -23,7 +23,7 @@ class Client:
         self.seed = seed
         self.device = device
         self.lr = lr
-        self.weight_decay = 4 * 10 ** (-5)
+        self.weight_decay = weight_decay
 
     def train(self, num_epochs=1, batch_size=10, minibatch=None):
         """Trains on self.model using the client's train_data.

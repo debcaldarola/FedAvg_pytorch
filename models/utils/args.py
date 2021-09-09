@@ -82,5 +82,10 @@ def parse_args():
                     type=float,
                     default=-1,
                     required=False)
+    parser.add_argument('--weight-decay',
+                        help='weight decay for local optimizers;',
+                        type=float,
+                        default=0,
+                        required=False)
 
     return parser.parse_args()
