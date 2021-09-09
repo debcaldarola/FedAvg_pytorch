@@ -34,16 +34,19 @@ def main():
         print('Please specify a valid dataset and a valid model.')
     model_path = '%s.%s' % (args.dataset, args.model)
 
+    # Load model
     print('############################## %s ##############################' % model_path)
     mod = importlib.import_module(model_path)
     ClientModel = getattr(mod, 'ClientModel')
 
+    # CIFAR: obtain info on parameter alpha (Dirichlet's distribution)
     if 'cifar' in args.dataset:
         data_dir = os.path.join('..', 'data', args.dataset, 'data', 'train')
         train_file = os.listdir(data_dir)
         alpha = train_file[0].split('train_')[1][:-5]
         print("Alpha:", alpha)
 
+    # Experiment parameters (e.g. num rounds, clients per round, lr, etc)
     tup = MAIN_PARAMS[args.dataset][args.t]
     num_rounds = args.num_rounds if args.num_rounds != -1 else tup[0]
     eval_every = args.eval_every if args.eval_every != -1 else tup[1]
@@ -114,9 +117,10 @@ def main():
 
     fp = open(file, "w")
 
-    # print_stats(0, server, train_clients, train_client_num_samples, test_clients, test_client_num_samples, args,
-    #            stat_writer_fn, args.use_val_set, fp)
+    print_stats(0, server, train_clients, train_client_num_samples, test_clients, test_client_num_samples, args,
+               stat_writer_fn, args.use_val_set, fp)
 
+    # Initialize checkpoint path
     if 'cifar' in args.dataset:
         save_path = server.save_model(
             os.path.join(ckpt_path, '{}.ckpt'.format(args.model + '_fedavg_' + str(alpha) +
@@ -127,8 +131,7 @@ def main():
             os.path.join(ckpt_path, '{}.ckpt'.format(args.model + '_fedavg_N' + str(num_rounds) + '_K' + str(
                 clients_per_round) + '_' + current_time)))
 
-    # Simulate training
-
+    # Start training
     for i in range(num_rounds):
         print('--- Round %d of %d: Training %d Clients ---' % (i + 1, num_rounds, clients_per_round))
         fp.write('--- Round %d of %d: Training %d Clients ---\n' % (i + 1, num_rounds, clients_per_round))
@@ -145,7 +148,7 @@ def main():
                                          minibatch=args.minibatch)
         sys_writer_fn(i + 1, c_ids, sys_metrics, c_groups, c_num_samples)
 
-        # Update server model
+        # Update server model (FedAvg)
         print("--- Updating central model ---")
         server.update_model()
 

@@ -48,8 +48,6 @@ class Server:
         Return:
             bytes_written: number of bytes written by each client to server 
                 dictionary with client ids as keys and integer values.
-            client computations: number of FLOPs computed by each client
-                dictionary with client ids as keys and integer values.
             bytes_read: number of bytes read by each client from server
                 dictionary with client ids as keys and integer values.
         """
@@ -75,6 +73,13 @@ class Server:
         return sys_metrics
 
     def update_model(self):
+        """FedAvg on the clients' updates for the current round.
+
+        Weighted average of self.updates, where the weight is given by the number
+        of samples seen by the corresponding client at training time.
+
+        Saves the new central model in self.client_model and its state dictionary in self.model
+        """
         total_weight = 0.
         base = OrderedDict()
         for (client_samples, client_model) in self.updates:
@@ -101,6 +106,7 @@ class Server:
         """Tests self.model on given clients.
 
         Tests model on self.selected_clients if clients_to_test=None.
+        For each client, the current server model is loaded before testing it.
 
         Args:
             clients_to_test: list of Client objects.

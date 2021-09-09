@@ -34,10 +34,8 @@ class Client:
             minibatch: fraction of client's data to apply minibatch sgd,
                 None to use FedAvg
         Return:
-            comp: number of FLOPs executed in training process
             num_samples: number of samples used in training
-            update: set of weights
-            update_size: number of bytes in update
+            update: state dictionary of the trained model
         """
         if minibatch is None:
             data = self.train_data
@@ -65,12 +63,15 @@ class Client:
         self.losses = losses
         num_train_samples = len(data['y'])
 
-        # print("samples:", self.id, num_train_samples)
-
         update = self.model.state_dict()
         return num_train_samples, update
 
     def run_epoch(self, data, batch_size, optimizer, criterion):
+        """Runs single training epoch of self.model on client's data.
+
+        Return:
+            epoch loss
+        """
         running_loss = 0.0
         i = 0
         for batched_x, batched_y in batch_data(data, batch_size, seed=self.seed):
