@@ -35,7 +35,10 @@ MODEL_PARAMS = {
     'celeba.mobilenet': (0.1, 2),
     'cifar100.cnn': (0.01, 100),
     'cifar10.cnn': (0.01, 10),
-    'inaturalist.mobilenet': (0.01, 1203)
+    'cifar10.mobilenet_prova': (0.01, 10),
+    'cifar100.mobilenet_prova': (0.01, 100),
+    'inaturalist.mobilenet': (0.01, 1203),
+    'inaturalist.cnn_prova': (0.01, 1203)
 }
 """dict: Model specific parameter specification"""
 

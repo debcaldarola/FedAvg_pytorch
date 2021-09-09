@@ -74,12 +74,6 @@ class iNaturalistDataset(Dataset):
         userdata.update(cdata['user_data'])
         for user, user_dict in userdata.items():
             for x, y in zip(user_dict['x'], user_dict['y']):
-                # img_name = os.path.join(root_dir, x + '.jpg')
-                # image = Image.open(img_name).convert('RGB')
-                # w, h = image.size
-                # if w < IMAGE_SIZE or h < IMAGE_SIZE:
-                #     print("REMOVING ", x)
-                #     continue
                 self.data[x] = y
         # print(len(self.data.values())) # 120300
         self.data_frame = pd.DataFrame(list(self.data.items()))
@@ -100,7 +94,6 @@ class iNaturalistDataset(Dataset):
         image = Image.open(img_name).convert('RGB')
         w, h = image.size
         if w < IMAGE_SIZE or h < IMAGE_SIZE:
-            # self.data_frame = self.data_frame.drop(idx)
             return None
         label = self.data_frame.iloc[idx, 1]
 

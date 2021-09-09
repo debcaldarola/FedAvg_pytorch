@@ -3,6 +3,7 @@ import torch.nn as nn
 import numpy as np
 import os
 from PIL import Image
+import torchvision.models as models
 import torchvision.transforms as transforms
 
 IMAGE_SIZE = 299
@@ -34,6 +35,7 @@ class ClientModel(nn.Module):
         self.size = self.model_size()
 
         self.model = torch.hub.load('pytorch/vision:v0.9.0', 'mobilenet_v2', pretrained=True)
+        # self.model = models.mobilenet_v2(pretrained=True)
         self.swapBN_toGN()
         self.model.classifier = nn.Sequential(
             nn.Dropout(p=0.2, inplace=False),
