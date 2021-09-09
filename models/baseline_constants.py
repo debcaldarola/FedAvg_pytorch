@@ -20,6 +20,11 @@ MAIN_PARAMS = {
         'small': (1000, 100, 10),
         'medium': (10000, 100, 10),
         'large': (20000, 100, 10)
+        },
+    'inaturalist': {
+        'small': (1000, 100, 10),
+        'medium': (2500, 100, 10),
+        'large': (5000, 100, 10)
     }
 }
 """dict: Specifies execution parameters (tot_num_rounds, eval_every_num_rounds, clients_per_round)"""
@@ -29,7 +34,11 @@ MODEL_PARAMS = {
     'celeba.cnn': (0.1, 2), # lr, num_classes
     'celeba.mobilenet': (0.1, 2),
     'cifar100.cnn': (0.01, 100),
-    'cifar10.cnn': (0.01, 10)
+    'cifar10.cnn': (0.01, 10),
+    'cifar10.mobilenet_prova': (0.01, 10),
+    'cifar100.mobilenet_prova': (0.01, 100),
+    'inaturalist.mobilenet': (0.01, 1203),
+    'inaturalist.cnn_prova': (0.01, 1203)
 }
 """dict: Model specific parameter specification"""
 

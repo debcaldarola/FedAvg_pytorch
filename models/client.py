@@ -1,3 +1,4 @@
+import copy
 import random
 import warnings
 import numpy as np
@@ -9,9 +10,10 @@ import torch.nn.functional as F
 from utils.model_utils import batch_data
 from baseline_constants import ACCURACY_KEY
 
+
 class Client:
-    
-    def __init__(self, seed, client_id, lr, group=None, train_data={'x' : [],'y' : []}, eval_data={'x' : [],'y' : []},
+
+    def __init__(self, seed, client_id, lr, weight_decay, group=None, train_data={'x': [], 'y': []}, eval_data={'x': [], 'y': []},
                  model=None, device=None):
         self._model = model
         self.id = client_id
@@ -21,7 +23,7 @@ class Client:
         self.seed = seed
         self.device = device
         self.lr = lr
-        self.weight_decay = 0
+        self.weight_decay = weight_decay
 
     def train(self, num_epochs=1, batch_size=10, minibatch=None):
         """Trains on self.model using the client's train_data.
@@ -32,17 +34,15 @@ class Client:
             minibatch: fraction of client's data to apply minibatch sgd,
                 None to use FedAvg
         Return:
-            comp: number of FLOPs executed in training process
             num_samples: number of samples used in training
-            update: set of weights
-            update_size: number of bytes in update
+            update: state dictionary of the trained model
         """
         if minibatch is None:
             data = self.train_data
             num_data = batch_size
         else:
             frac = min(1.0, minibatch)
-            num_data = max(1, int(frac*len(self.train_data["x"])))
+            num_data = max(1, int(frac * len(self.train_data["x"])))
             xs, ys = zip(*random.sample(list(zip(self.train_data["x"], self.train_data["y"])), num_data))
             data = {'x': xs, 'y': ys}
             # Minibatch trains for only 1 epoch - multiple local epochs don't make sense!
@@ -53,6 +53,8 @@ class Client:
         optimizer = optim.SGD(self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay)
         losses = np.empty(num_epochs)
         j = 0
+        # print("initial model: ", list(self.model.state_dict().values())[0][0])
+
         for epoch in range(num_epochs):
             self.model.train()
             losses[j] = self.run_epoch(data, num_data, optimizer, criterion)
@@ -65,6 +67,11 @@ class Client:
         return num_train_samples, update
 
     def run_epoch(self, data, batch_size, optimizer, criterion):
+        """Runs single training epoch of self.model on client's data.
+
+        Return:
+            epoch loss
+        """
         running_loss = 0.0
         i = 0
         for batched_x, batched_y in batch_data(data, batch_size, seed=self.seed):
@@ -75,12 +82,18 @@ class Client:
                 input_data = self.model.process_x(batched_x)
                 target_data = self.model.process_y(batched_y)
 
+            if input_data.size == 0:
+                continue
+
             input_data_tensor = torch.from_numpy(input_data).type(torch.FloatTensor).to(self.device)
             target_data_tensor = torch.LongTensor(target_data).to(self.device)
             optimizer.zero_grad()
             outputs = self.model(input_data_tensor)
+            # print(outputs, target_data_tensor)
             loss = criterion(outputs, target_data_tensor)  # loss between the prediction and ground truth (labels)
             loss.backward()  # gradient inside the optimizer (memory usage increases here)
+            # _, predicted = torch.max(outputs.data, 1)
+            # print(predicted, target_data_tensor)
             running_loss += loss.item()
             optimizer.step()  # update of weights
             i += 1
@@ -88,7 +101,7 @@ class Client:
         if i == 0:
             print("Not running epoch", self.id)
             return 0
-        return running_loss/i
+        return running_loss / i
 
     def test(self, batch_size, set_to_use='test'):
         """Tests self.model on self.test_data.
@@ -117,6 +130,9 @@ class Client:
                 input = self.model.process_x(batched_x)
                 labels = self.model.process_y(batched_y)
 
+            if input.size == 0:
+                continue
+
             # print(input.shape) [64,3,32,32]
             input_tensor = torch.from_numpy(input).type(torch.FloatTensor).to(self.device)
             labels_tensor = torch.LongTensor(labels).to(self.device)
@@ -124,7 +140,8 @@ class Client:
             with torch.no_grad():
                 outputs = self.model(input_tensor)
                 test_loss += F.cross_entropy(outputs, labels_tensor, reduction='sum').item()
-                _, predicted = torch.max(outputs.data, 1)   # same as torch.argmax()
+                _, predicted = torch.max(outputs.data, 1)  # same as torch.argmax()
+                # print(predicted, labels_tensor)
                 total += labels_tensor.size(0)
                 correct += (predicted == labels_tensor).sum().item()
         if total == 0:
@@ -168,8 +185,8 @@ class Client:
         if self.train_data is not None:
             train_size = len(self.train_data['y'])
 
-        test_size = 0 
-        if self.eval_data is not  None:
+        test_size = 0
+        if self.eval_data is not None:
             test_size = len(self.eval_data['y'])
         return train_size + test_size
 

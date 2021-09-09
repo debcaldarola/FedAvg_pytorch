@@ -1,7 +1,7 @@
 # Federated Learning framework based on FedAvg
 
 PyTorch-based Federated Learning framework based on FederatedAveraging (FedAvg) algorithm.
-This is an unofficial translation of the framework proposed by Caldas et a. in **LEAF** (written in TensorFlow). References follow. 
+This is an unofficial translation of the framework proposed by Caldas _et al._ in **LEAF** (written in TensorFlow). References follow. 
 
 ## Resources
 
@@ -41,13 +41,18 @@ This is an unofficial translation of the framework proposed by Caldas et a. in *
 
 3. CIFAR-100
   * **Overview**: Image Dataset based on [CIFAR-100](https://www.cs.toronto.edu/~kriz/cifar.html) and [Federated Vision Datasets](https://github.com/google-research/google-research/tree/master/federated_vision_datasets)
-  * **Details**: 100 users with 500 images each. Different combinations are possible, following Dirichlet's distribution.
-  * **Task**: Image Classification on 100 classes
+  * **Details**: 100 users with 500 images each. Different combinations are possible, following Dirichlet's distribution
+  * **Task**: Image Classification over 100 classes
 
 4. CIFAR-10
   * **Overview**: Image Dataset based on [CIFAR10](https://www.cs.toronto.edu/~kriz/cifar.html) and [Federated Vision Datasets](https://github.com/google-research/google-research/tree/master/federated_vision_datasets)
   * **Details**: 100 users with 500 images each. Different combinations are possible, following Dirichlet's distribution
-  * **Task**: Image Classification on 10 classes
+  * **Task**: Image Classification over 10 classes
+
+5. iNaturalist
+  * **Overview**: Image Dataset based on [iNaturalist-2017](https://github.com/visipedia/inat_comp/tree/master/2017) dataset and iNaturalist-User-120k from [Federated Vision Datasets](https://github.com/google-research/google-research/tree/master/federated_vision_datasets)
+  * **Details**: 9,275 users. Non-i.i.d. and unbalanced setting.
+  * **Task**: Image Classification over 1,203 classes
 
 [comment]: <> (5. Synthetic Dataset)
 

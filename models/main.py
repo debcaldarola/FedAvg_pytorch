@@ -34,10 +34,19 @@ def main():
         print('Please specify a valid dataset and a valid model.')
     model_path = '%s.%s' % (args.dataset, args.model)
 
+    # Load model
     print('############################## %s ##############################' % model_path)
     mod = importlib.import_module(model_path)
     ClientModel = getattr(mod, 'ClientModel')
 
+    # CIFAR: obtain info on parameter alpha (Dirichlet's distribution)
+    if 'cifar' in args.dataset:
+        data_dir = os.path.join('..', 'data', args.dataset, 'data', 'train')
+        train_file = os.listdir(data_dir)
+        alpha = train_file[0].split('train_')[1][:-5]
+        print("Alpha:", alpha)
+
+    # Experiment parameters (e.g. num rounds, clients per round, lr, etc)
     tup = MAIN_PARAMS[args.dataset][args.t]
     num_rounds = args.num_rounds if args.num_rounds != -1 else tup[0]
     eval_every = args.eval_every if args.eval_every != -1 else tup[1]
@@ -66,8 +75,8 @@ def main():
     server = Server(client_model)
 
     # Create and set up clients
-    train_clients, test_clients = setup_clients(args.dataset, client_model, args.use_val_set, args.seed, device,
-                                                args.lr)
+    train_clients, test_clients = setup_clients(args.dataset, args.lr, args.weight_decay, client_model,
+                                                args.use_val_set, args.seed, device)
     train_client_ids, train_client_groups, train_client_num_samples = server.get_clients_info(train_clients)
     test_client_ids, test_client_groups, test_client_num_samples = server.get_clients_info(test_clients)
     if set(train_client_ids) == set(test_client_ids):
@@ -99,15 +108,30 @@ def main():
     start_time = datetime.now()
     current_time = start_time.strftime("%m%d%y_%H:%M:%S")
 
-    file = os.path.join(res_path, 'results' + '_alpha0_N' + str(num_rounds) + '_K' + str(
-        clients_per_round) + '_' + current_time + '.txt')
+    if 'cifar' in args.dataset:
+        file = os.path.join(res_path, 'results_' + str(alpha) + '_N' + str(num_rounds) + '_K' + str(
+            clients_per_round) + '_' + current_time + '.txt')
+    else:
+        file = os.path.join(res_path, 'results_N' + str(num_rounds) + '_K' + str(
+            clients_per_round) + '_' + current_time + '.txt')
+
     fp = open(file, "w")
 
     print_stats(0, server, train_clients, train_client_num_samples, test_clients, test_client_num_samples, args,
-                stat_writer_fn, args.use_val_set, fp)
+               stat_writer_fn, args.use_val_set, fp)
 
-    # Simulate training
+    # Initialize checkpoint path
+    if 'cifar' in args.dataset:
+        save_path = server.save_model(
+            os.path.join(ckpt_path, '{}.ckpt'.format(args.model + '_fedavg_' + str(alpha) +
+                                                     '_N' + str(num_rounds) + '_K' + str(
+                clients_per_round) + '_' + current_time)))
+    else:
+        save_path = server.save_model(
+            os.path.join(ckpt_path, '{}.ckpt'.format(args.model + '_fedavg_N' + str(num_rounds) + '_K' + str(
+                clients_per_round) + '_' + current_time)))
 
+    # Start training
     for i in range(num_rounds):
         print('--- Round %d of %d: Training %d Clients ---' % (i + 1, num_rounds, clients_per_round))
         fp.write('--- Round %d of %d: Training %d Clients ---\n' % (i + 1, num_rounds, clients_per_round))
@@ -117,17 +141,18 @@ def main():
         # Select clients to train during this round
         server.select_clients(i, online(train_clients), num_clients=clients_per_round)
         c_ids, c_groups, c_num_samples = server.get_clients_info(server.selected_clients)
-        # print("Selected clients:", c_ids)
+        print("Selected clients:", c_ids)
 
         # Simulate server model training on selected clients' data
         sys_metrics = server.train_model(num_epochs=args.num_epochs, batch_size=args.batch_size,
                                          minibatch=args.minibatch)
         sys_writer_fn(i + 1, c_ids, sys_metrics, c_groups, c_num_samples)
 
-        # Update server model
+        # Update server model (FedAvg)
+        print("--- Updating central model ---")
         server.update_model()
 
-        print("\tCommunication round duration: ", datetime.now()-start_round)
+        print("\tCommunication round duration: ", datetime.now() - start_round)
 
         # Test model
         if (i + 1) % eval_every == 0 or (i + 1) == num_rounds:
@@ -140,8 +165,6 @@ def main():
             test_loss.append(test_metrics[1])
             val_rounds.append(i)
 
-        save_path = server.save_model(os.path.join(ckpt_path, '{}.ckpt'.format(args.model + '_fedavg' + '_alpha0_' +
-                                       '_N' + str(num_rounds) + '_K' + str(clients_per_round) + '_' + current_time)))
         print('Model saved in path: %s' % save_path)
 
     end_time = datetime.now()
@@ -150,8 +173,6 @@ def main():
     fp.write("Total time for experiment: %d seconds, %d microseconds " % (tot_time.seconds, tot_time.microseconds))
 
     # Save server model
-    save_path = server.save_model(os.path.join(ckpt_path, '{}.ckpt'.format(args.model + '_fedavg' + '_alpha0' +
-                                    '_N' + str(num_rounds) + '_K' + str(clients_per_round) + '_' + current_time)))
     print('Model saved in path: %s' % save_path)
 
     fp.close()
@@ -162,12 +183,18 @@ def main():
     if not os.path.exists(img_path):
         os.makedirs(img_path)
 
-    plot_metrics(val_accuracies, val_loss, val_rounds,
-                 'alpha0_val_N' + str(num_rounds) + '_K' + str(clients_per_round) + '_' + current_time,
-                 img_path, 'Validation on ' + args.dataset)
-    plot_metrics(test_accuracies, test_loss, val_rounds,
-                 'alpha0_test_N' + str(num_rounds) + '_K' + str(clients_per_round) + '_' + current_time,
-                 img_path, 'Test on ' + args.dataset, prefix='test_')
+    if 'cifar' in args.dataset:
+        img_name_val = str(alpha) + '_val_N' + str(num_rounds) + '_K' + str(
+            clients_per_round) + '_lr' + str(args.lr) + current_time
+        img_name_test = str(alpha) + '_test_N' + str(num_rounds) + '_K' + str(
+            clients_per_round) + '_lr' + str(args.lr) + current_time
+    else:
+        img_name_val = 'val_N' + str(num_rounds) + '_K' + str(clients_per_round) + '_lr' + str(args.lr) + current_time
+        img_name_test = 'test_N' + str(num_rounds) + '_K' + str(clients_per_round) + '_lr' + str(args.lr) + current_time
+
+    plot_metrics(val_accuracies, val_loss, val_rounds, img_name_val, img_path, 'Validation on ' + args.dataset)
+    plot_metrics(test_accuracies, test_loss, val_rounds, img_name_test, img_path, 'Test on ' + args.dataset,
+                 prefix='test_')
     print("Plots saved in path: %s" % img_path)
 
 
@@ -176,14 +203,14 @@ def online(clients):
     return clients
 
 
-def create_clients(users, groups, train_data, test_data, model, seed, device, lr):
+def create_clients(users, groups, train_data, test_data, model, seed, device, lr, weight_decay):
     if len(groups) == 0:
         groups = [[] for _ in users]
-    clients = [Client(seed, u, lr, g, train_data[u], test_data[u], model, device) for u, g in zip(users, groups)]
+    clients = [Client(seed, u, lr, weight_decay, g, train_data[u], test_data[u], model, device) for u, g in zip(users, groups)]
     return clients
 
 
-def setup_clients(dataset, model=None, use_val_set=False, seed=None, device=None, lr=None):
+def setup_clients(dataset, lr, weight_decay, model=None, use_val_set=False, seed=None, device=None):
     """Instantiates clients based on given train and test data directories.
 
     Return:
@@ -195,8 +222,8 @@ def setup_clients(dataset, model=None, use_val_set=False, seed=None, device=None
 
     train_users, train_groups, test_users, test_groups, train_data, test_data = read_data(train_data_dir, test_data_dir)
 
-    train_clients = create_clients(train_users, train_groups, train_data, test_data, model, seed, device, lr)
-    test_clients = create_clients(test_users, test_groups, train_data, test_data, model, seed, device, lr)
+    train_clients = create_clients(train_users, train_groups, train_data, test_data, model, seed, device, lr, weight_decay)
+    test_clients = create_clients(test_users, test_groups, train_data, test_data, model, seed, device, lr, weight_decay)
 
     return train_clients, test_clients
 
@@ -260,6 +287,7 @@ def print_metrics(metrics, weights, fp, prefix=''):
                     np.percentile(ordered_metric, 10),
                     np.percentile(ordered_metric, 50),
                     np.percentile(ordered_metric, 90)))
+        # fp.write("Clients losses:", ordered_metric)
         metrics_values.append(np.average(ordered_metric, weights=ordered_weights))
     return metrics_values
 

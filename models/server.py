@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+import copy
 
 from collections import OrderedDict
 from baseline_constants import BYTES_WRITTEN_KEY, BYTES_READ_KEY
@@ -8,8 +9,8 @@ from baseline_constants import BYTES_WRITTEN_KEY, BYTES_READ_KEY
 class Server:
 
     def __init__(self, client_model):
-        self.client_model = client_model
-        self.model = client_model.state_dict()
+        self.client_model = copy.deepcopy(client_model)
+        self.model = copy.deepcopy(client_model.state_dict())
         self.selected_clients = []
         self.updates = []
 
@@ -47,8 +48,6 @@ class Server:
         Return:
             bytes_written: number of bytes written by each client to server 
                 dictionary with client ids as keys and integer values.
-            client computations: number of FLOPs computed by each client
-                dictionary with client ids as keys and integer values.
             bytes_read: number of bytes read by each client from server
                 dictionary with client ids as keys and integer values.
         """
@@ -69,11 +68,18 @@ class Server:
                 sys_metrics[c.id][BYTES_READ_KEY] += c.model.size
                 sys_metrics[c.id][BYTES_WRITTEN_KEY] += c.model.size
 
-            self.updates.append((num_samples, update))
+            self.updates.append((num_samples, copy.deepcopy(update)))
 
         return sys_metrics
 
     def update_model(self):
+        """FedAvg on the clients' updates for the current round.
+
+        Weighted average of self.updates, where the weight is given by the number
+        of samples seen by the corresponding client at training time.
+
+        Saves the new central model in self.client_model and its state dictionary in self.model
+        """
         total_weight = 0.
         base = OrderedDict()
         for (client_samples, client_model) in self.updates:
@@ -84,19 +90,23 @@ class Server:
                 else:
                     base[key] = (client_samples * value.type(torch.FloatTensor))
 
-        averaged_soln = self.model
+        averaged_soln = copy.deepcopy(self.model)
         for key, value in base.items():
             if total_weight != 0:
-                averaged_soln[key] = value / total_weight
+                averaged_soln[key] = value.to('cuda') / total_weight
+
+        diff = sum((x - y).abs().sum() for x, y in zip(self.model.values(), averaged_soln.values()))
+        print("before and after difference: ", diff)
 
         self.client_model.load_state_dict(averaged_soln)
-        self.model = self.client_model.state_dict()
+        self.model = copy.deepcopy(self.client_model.state_dict())
         self.updates = []
 
     def test_model(self, clients_to_test, batch_size, set_to_use='test'):
         """Tests self.model on given clients.
 
         Tests model on self.selected_clients if clients_to_test=None.
+        For each client, the current server model is loaded before testing it.
 
         Args:
             clients_to_test: list of Client objects.
