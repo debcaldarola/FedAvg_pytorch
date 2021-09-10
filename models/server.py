@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+import torch.nn as nn
 import copy
 
 from collections import OrderedDict
@@ -95,8 +96,8 @@ class Server:
             if total_weight != 0:
                 averaged_soln[key] = value.to('cuda') / total_weight
 
-        diff = sum((x - y).abs().sum() for x, y in zip(self.model.values(), averaged_soln.values()))
-        print("before and after difference: ", diff)
+        # diff = sum((x - y).abs().sum() for x, y in zip(self.model.values(), averaged_soln.values()))
+        # print("before and after difference: ", diff)
 
         self.client_model.load_state_dict(averaged_soln)
         self.model = copy.deepcopy(self.client_model.state_dict())

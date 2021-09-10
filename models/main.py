@@ -18,6 +18,7 @@ import matplotlib.pyplot as plt
 
 STAT_METRICS_PATH = 'metrics/stat_metrics.csv'
 SYS_METRICS_PATH = 'metrics/sys_metrics.csv'
+CHECKPOINT_NAME = "mobilenet_fedavg_N50000_K10_090921_16:50:53"
 
 
 def main():
@@ -64,9 +65,11 @@ def main():
     # Create client model, and share params with server model
     client_model = ClientModel(*model_params, device)
     if args.load:  # load model from checkpoint
-        print("--- Loading model from checkpoint ---")
-        load_path = os.path.join('.', 'checkpoints', args.dataset, '{}.ckpt'.format(args.model + '_fedavg'))
-        client_model = torch.load(load_path)
+        print("--- Loading model", CHECKPOINT_NAME, "from checkpoint ---")
+        load_path = os.path.join('.', 'checkpoints', args.dataset, '{}.ckpt'.format(CHECKPOINT_NAME))
+        checkpoint = torch.load(load_path)
+        # print(checkpoint.keys())
+        client_model.load_state_dict(checkpoint, strict=False)
     elif args.multigpu:
         client_model = nn.DataParallel(client_model)  # multiple GPUs usage if more memory is required
     client_model = client_model.to(device)
@@ -121,15 +124,16 @@ def main():
                stat_writer_fn, args.use_val_set, fp)
 
     # Initialize checkpoint path
-    if 'cifar' in args.dataset:
-        save_path = server.save_model(
-            os.path.join(ckpt_path, '{}.ckpt'.format(args.model + '_fedavg_' + str(alpha) +
-                                                     '_N' + str(num_rounds) + '_K' + str(
-                clients_per_round) + '_' + current_time)))
+    if args.load:
+        save_path = os.path.join(ckpt_path,  '{}.ckpt'.format(CHECKPOINT_NAME))
     else:
-        save_path = server.save_model(
-            os.path.join(ckpt_path, '{}.ckpt'.format(args.model + '_fedavg_N' + str(num_rounds) + '_K' + str(
-                clients_per_round) + '_' + current_time)))
+        if 'cifar' in args.dataset:
+            save_path = os.path.join(ckpt_path, '{}.ckpt'.format(args.model + '_fedavg_' + str(alpha) +
+                                                         '_N' + str(num_rounds) + '_K' + str(
+                    clients_per_round) + '_' + current_time))
+        else:
+            save_path = os.path.join(ckpt_path, '{}.ckpt'.format(args.model + '_fedavg_N' + str(num_rounds) + '_K' + str(
+                    clients_per_round) + '_' + current_time))
 
     # Start training
     for i in range(num_rounds):
