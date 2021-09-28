@@ -9,16 +9,17 @@ IMAGE_SIZE = 32
 IMAGES_DIR = os.path.join('..', 'data', 'cifar100', 'data', 'raw', 'img')
 
 transform_train = transforms.Compose([
-    # transforms.RandomCrop(IMAGE_SIZE, padding=4),
-    # transforms.RandomHorizontalFlip(),
-    transforms.ToTensor()
-    # transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+    transforms.RandomCrop(IMAGE_SIZE, padding=4),
+    transforms.RandomHorizontalFlip(),
+    transforms.ToTensor(),
+    transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
 ])
 # Normalize the test set same as training set without augmentation
 transform_test = transforms.Compose([
     transforms.ToTensor(),
-    # transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+    transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
 ])
+
 
 class ClientModel(nn.Module):
     def __init__(self, lr, num_classes, device):
@@ -73,10 +74,6 @@ class ClientModel(nn.Module):
             img = transform_test(img)
         img = img.cpu().detach().numpy()
         return img
-
-    def save_images(self, data, ids):
-        for i, id in enumerate(ids):
-            self.data[id] = np.array(data[i])
 
     def model_size(self):
         tot_size = 0

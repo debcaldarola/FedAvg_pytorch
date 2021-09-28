@@ -24,7 +24,6 @@ def parse_file_information(file_path, train=True):
     n_users = 100  # start assigning user_id from 100 for test users
     with open(file_path, 'r') as file:
         reader = DictReader(file)
-        next(reader)  # skip header
         for line in reader:
             if train:
                 user_id = int(line['user_id'])
@@ -52,13 +51,13 @@ def parse_file_information(file_path, train=True):
 
 def parse_file(csv_path, dir_path, train=True, alpha=None):
     if train and alpha is not None:
-        f = 'federated_train_alpha_' + str(alpha) + '0.csv'
+        f = 'federated_train_alpha_' + str(alpha) + '0_with_name.csv'
     elif not train:
         f = 'test.csv'
     print("Parsing file ", f)
     file_path = os.path.join(csv_path, f)
     dictionary = parse_file_information(file_path, train)
-    f_name = f[:-4] + '.json'
+    f_name = f[:-14] + '.json'
     json_path = os.path.join(dir_path, f_name)
     save_as_json_file(json_path, dictionary)
 
@@ -67,7 +66,7 @@ def main():
     args = parse_args()
     alpha = args.alpha
     assert alpha in [0.00, 0.50, 1.00, 2.00, 5.00, 10.00, 100.00, 1000.00]
-    csv_path = os.path.join('.', 'cifar100')
+    csv_path = os.path.join('.', 'cifar100_with_filename_correspondance')
     if not os.path.exists(csv_path):
         print("Launch program in /FedAvg_pytorch/data/cifar100/")
         exit(0)
@@ -82,7 +81,7 @@ def main():
 
     # Read files and save them as json in the required format
     parse_file(csv_path, train_data_dir, alpha=alpha)
-    parse_file(csv_path, test_data_dir, train=False)
+    # parse_file(csv_path, test_data_dir, train=False)
 
 
 if __name__ == '__main__':

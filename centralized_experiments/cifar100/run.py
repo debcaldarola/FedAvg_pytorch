@@ -24,6 +24,7 @@ transform_test = transforms.Compose([
     transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
 ])
 
+
 class LeNet5(nn.Module):
     def __init__(self, lr, num_classes, device):
         super(LeNet5, self).__init__()
@@ -81,8 +82,11 @@ def parse_args():
                         type=float,
                         required=True)
     parser.add_argument('-device',
-                        default='cuda:0',
+                        default='cuda:1',
                         type=str)
+    parser.add_argument('--weight-decay',
+                        type=float,
+                        default=0)
     return parser.parse_args()
 
 
@@ -126,7 +130,7 @@ def main():
         os.makedirs(res_path)
 
     criterion = nn.CrossEntropyLoss().to(device)
-    optimizer = optim.SGD(model.parameters(), lr=args.lr, weight_decay=4*10**(-4))
+    optimizer = optim.SGD(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     num_epochs = args.num_epochs
     print('num_epochs:', num_epochs)
 
@@ -134,15 +138,18 @@ def main():
     start_time = datetime.now()
     current_time = start_time.strftime("%m%d%y_%H:%M:%S")
 
-    file = os.path.join(res_path, args.model + '_' + str(num_epochs) + 'epochs_' + current_time + '.txt')
+    file = os.path.join(res_path, args.model + '_' + str(num_epochs) + 'epochs_lr' + str(args.lr) + '_bs' + str(args.batch_size) + current_time + '.txt')
     fp = open(file, "w")
 
-    train_losses, train_acc = train_net(model, trainloader, num_epochs, optimizer, criterion, device, fp)
+    train_losses, train_acc, test_losses, test_acc = train_net(model, trainloader, testloader, num_epochs, optimizer, criterion, device, fp)
     figpath = os.path.join('plots')
     if not os.path.exists(figpath):
         os.makedirs(figpath)
-    figname = 'eval_' + current_time
-    plot_metrics(train_acc, train_losses, num_epochs, figname, figpath, 'Evaluation of centralized model training')
+    fig_info = 'lr' + str(args.lr) + '_bs' + str(args.batch_size) + '_E' + str(args.num_epochs) + '_' + current_time
+    figname = fig_info + '_accuracy'
+    plot_metrics(train_acc, test_acc, num_epochs, figname, figpath, 'CIFAR100 - Accuracy of centralized model')
+    figname = fig_info + '_loss'
+    plot_metrics(train_losses, test_losses, num_epochs, figname, figpath, 'CIFAR100 - Loss of centralized model', metric='loss')
 
     print("--- Testing model ---")
     test_loss, accuracy = test_net(model, testloader, device)
@@ -158,9 +165,11 @@ def main():
     print("Model saved in", save_path)
 
 
-def train_net(model, trainloader, num_epochs, optimizer, criterion, device, fp):
+def train_net(model, trainloader, testloader, num_epochs, optimizer, criterion, device, fp):
     eval_losses = np.empty(num_epochs)
     eval_accuracy = np.empty(num_epochs)
+    test_losses = np.empty(num_epochs)
+    test_accuracy = np.empty(num_epochs)
     j = 0
     # Train model
     for epoch in range(num_epochs):
@@ -181,14 +190,21 @@ def train_net(model, trainloader, num_epochs, optimizer, criterion, device, fp):
         print("Epoch {}/{}, Loss: {:.3f}".format(epoch + 1, num_epochs, eval_losses[j]))
         fp.write("Epoch {}/{}, Loss: {:.3f}\n".format(epoch + 1, num_epochs, eval_losses[j]))
 
-        print("\tEvaluating model...")
+        print("\tEvaluating model on train set...")
         eval_loss, eval_acc = test_net(model, trainloader, device)
         eval_accuracy[j] = eval_acc
         print("Epoch {}/{}, Accuracy: {:.3f}".format(epoch + 1, num_epochs, eval_accuracy[j]))
-        fp.write("Epoch {}/{}, Accuracy: {:.3f}\n".format(epoch + 1, num_epochs, eval_accuracy[j]))
+        fp.write("Epoch {}/{}, Eval Accuracy: {:.3f}\n".format(epoch + 1, num_epochs, eval_accuracy[j]))
+        print("\tEvaluating model on test set...")
+        test_loss, test_acc = test_net(model, testloader, device)
+        test_accuracy[j] = test_acc
+        test_losses[j] = test_loss
+        print("Epoch {}/{}, Accuracy: {:.3f}".format(epoch + 1, num_epochs, test_accuracy[j]))
+        fp.write("Epoch {}/{}, Test Accuracy: {:.3f}\n".format(epoch + 1, num_epochs, test_accuracy[j]))
+
 
         j += 1
-    return eval_losses, eval_accuracy
+    return eval_losses, eval_accuracy, test_losses, test_accuracy
 
 
 def test_net(model, testloader, device):
@@ -212,14 +228,14 @@ def test_net(model, testloader, device):
     return test_loss, accuracy
 
 
-def plot_metrics(accuracy, loss, n_epochs, figname, figpath, title, prefix='val_'):
+def plot_metrics(train_metric, test_metric, n_epochs, figname, figpath, title, metric='accuracy'):
     name = os.path.join(figpath, figname)
 
-    plt.plot(list(range(1, n_epochs+1)), loss, '-b', label=prefix + 'loss')
-    plt.plot(list(range(1, n_epochs+1)), accuracy, '-r', label=prefix + 'accuracy')
+    plt.plot(list(range(1, n_epochs+1)), train_metric, '-b', label='val_' + metric)
+    plt.plot(list(range(1, n_epochs+1)), test_metric, '-r', label='test_' + metric)
 
     plt.xlabel("Epochs")
-    plt.ylabel("Average accuracy")
+    plt.ylabel("Average" + metric)
     plt.legend(loc='upper left')
     plt.title(title)
 
