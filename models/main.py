@@ -2,8 +2,8 @@
 import importlib
 import numpy as np
 import os
-# os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-# os.environ['CUDA_VISIBLE_DEVICES'] = "1,2,3"
+os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
+os.environ['CUDA_VISIBLE_DEVICES'] = "3"
 import random
 import torch
 import torch.nn as nn

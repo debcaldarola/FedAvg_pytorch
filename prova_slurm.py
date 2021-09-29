@@ -1,4 +1,5 @@
 import os
+import torch
 
 
 def main():
@@ -7,7 +8,12 @@ def main():
         os.makedirs(path)
     fp = open(os.path.join(path, "prova.txt"), "w")
     fp.write("ciao\n")
+    print("Dovrebbe andare nel file di output")
     fp.write(str(10))
+    print("--- Prova loading del modello ---")
+    model = torch.hub.load('pytorch/vision:v0.9.0', 'mobilenet_v2', pretrained=True)
+    model = model.to('cuda')
+    fp.write("Model loaded in GPU")
     fp.close()
 
 
